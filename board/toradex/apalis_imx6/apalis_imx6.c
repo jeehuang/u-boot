@@ -7,7 +7,13 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <dm.h>
+#include <image.h>
+#include <init.h>
+#include <net.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
 
 #include <ahci.h>
 #include <asm/arch/clock.h>
@@ -26,8 +32,8 @@
 #include <dm/device-internal.h>
 #include <dm/platform_data/serial_mxc.h>
 #include <dwc_ahsata.h>
-#include <environment.h>
-#include <fsl_esdhc.h>
+#include <env.h>
+#include <fsl_esdhc_imx.h>
 #include <imx_thermal.h>
 #include <micrel.h>
 #include <miiphy.h>
@@ -88,7 +94,7 @@ iomux_v3_cfg_t const uart1_pads_dte[] = {
 	MX6_PAD_CSI0_DAT11__UART1_TX_DATA | MUX_PAD_CTRL(UART_PAD_CTRL),
 };
 
-#if defined(CONFIG_FSL_ESDHC) && defined(CONFIG_SPL_BUILD)
+#if defined(CONFIG_FSL_ESDHC_IMX) && defined(CONFIG_SPL_BUILD)
 /* Apalis MMC1 */
 iomux_v3_cfg_t const usdhc1_pads[] = {
 	MX6_PAD_SD1_CLK__SD1_CLK   | MUX_PAD_CTRL(USDHC_PAD_CTRL),
@@ -131,26 +137,83 @@ iomux_v3_cfg_t const usdhc3_pads[] = {
 	MX6_PAD_SD3_DAT7__SD3_DATA7 | MUX_PAD_CTRL(USDHC_EMMC_PAD_CTRL),
 	MX6_PAD_SD3_RST__GPIO7_IO08 | MUX_PAD_CTRL(WEAK_PULLUP) | MUX_MODE_SION,
 };
-#endif /* CONFIG_FSL_ESDHC & CONFIG_SPL_BUILD */
+#endif /* CONFIG_FSL_ESDHC_IMX & CONFIG_SPL_BUILD */
 
 int mx6_rgmii_rework(struct phy_device *phydev)
 {
-	/* control data pad skew - devaddr = 0x02, register = 0x04 */
-	ksz9031_phy_extended_write(phydev, 0x02,
-				   MII_KSZ9031_EXT_RGMII_CTRL_SIG_SKEW,
-				   MII_KSZ9031_MOD_DATA_NO_POST_INC, 0x0000);
-	/* rx data pad skew - devaddr = 0x02, register = 0x05 */
-	ksz9031_phy_extended_write(phydev, 0x02,
-				   MII_KSZ9031_EXT_RGMII_RX_DATA_SKEW,
-				   MII_KSZ9031_MOD_DATA_NO_POST_INC, 0x0000);
-	/* tx data pad skew - devaddr = 0x02, register = 0x05 */
-	ksz9031_phy_extended_write(phydev, 0x02,
-				   MII_KSZ9031_EXT_RGMII_TX_DATA_SKEW,
-				   MII_KSZ9031_MOD_DATA_NO_POST_INC, 0x0000);
-	/* gtx and rx clock pad skew - devaddr = 0x02, register = 0x08 */
-	ksz9031_phy_extended_write(phydev, 0x02,
-				   MII_KSZ9031_EXT_RGMII_CLOCK_SKEW,
-				   MII_KSZ9031_MOD_DATA_NO_POST_INC, 0x03FF);
+	int tmp;
+
+	switch (ksz9xx1_phy_get_id(phydev) & MII_KSZ9x31_SILICON_REV_MASK) {
+	case PHY_ID_KSZ9131:
+		/* read rxc dll control - devaddr = 0x02, register = 0x4c */
+		tmp = ksz9031_phy_extended_read(phydev, 0x02,
+					   MII_KSZ9131_EXT_RGMII_2NS_SKEW_RXDLL,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC);
+		/* disable rxdll bypass (enable 2ns skew delay on RXC) */
+		tmp &= ~MII_KSZ9131_RXTXDLL_BYPASS;
+		/* rxc data pad skew 2ns - devaddr = 0x02, register = 0x4c */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9131_EXT_RGMII_2NS_SKEW_RXDLL,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   tmp);
+		/* read txc dll control - devaddr = 0x02, register = 0x4d */
+		tmp = ksz9031_phy_extended_read(phydev, 0x02,
+					   MII_KSZ9131_EXT_RGMII_2NS_SKEW_TXDLL,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC);
+		/* disable rxdll bypass (enable 2ns skew delay on TXC) */
+		tmp &= ~MII_KSZ9131_RXTXDLL_BYPASS;
+		/* txc data pad skew 2ns - devaddr = 0x02, register = 0x4d */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9131_EXT_RGMII_2NS_SKEW_TXDLL,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   tmp);
+
+		/* control data pad skew - devaddr = 0x02, register = 0x04 */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9031_EXT_RGMII_CTRL_SIG_SKEW,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   0x007d);
+		/* rx data pad skew - devaddr = 0x02, register = 0x05 */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9031_EXT_RGMII_RX_DATA_SKEW,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   0x7777);
+		/* tx data pad skew - devaddr = 0x02, register = 0x05 */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9031_EXT_RGMII_TX_DATA_SKEW,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   0xdddd);
+		/* gtx and rx clock pad skew - devaddr = 0x02,register = 0x08 */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9031_EXT_RGMII_CLOCK_SKEW,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   0x0007);
+		break;
+	case PHY_ID_KSZ9031:
+	default:
+		/* control data pad skew - devaddr = 0x02, register = 0x04 */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9031_EXT_RGMII_CTRL_SIG_SKEW,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   0x0000);
+		/* rx data pad skew - devaddr = 0x02, register = 0x05 */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9031_EXT_RGMII_RX_DATA_SKEW,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   0x0000);
+		/* tx data pad skew - devaddr = 0x02, register = 0x05 */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9031_EXT_RGMII_TX_DATA_SKEW,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   0x0000);
+		/* gtx and rx clock pad skew - devaddr = 0x02,register = 0x08 */
+		ksz9031_phy_extended_write(phydev, 0x02,
+					   MII_KSZ9031_EXT_RGMII_CLOCK_SKEW,
+					   MII_KSZ9031_MOD_DATA_NO_POST_INC,
+					   0x03FF);
+		break;
+	}
+
 	return 0;
 }
 
@@ -175,22 +238,6 @@ iomux_v3_cfg_t const enet_pads[] = {
 						  MUX_MODE_SION,
 #	define GPIO_ENET_PHY_RESET IMX_GPIO_NR(1, 25)
 };
-
-static void setup_iomux_enet(void)
-{
-	imx_iomux_v3_setup_multiple_pads(enet_pads, ARRAY_SIZE(enet_pads));
-}
-
-static int reset_enet_phy(struct mii_dev *bus)
-{
-	/* Reset KSZ9031 PHY */
-	gpio_request(GPIO_ENET_PHY_RESET, "ETH_RESET#");
-	gpio_direction_output(GPIO_ENET_PHY_RESET, 0);
-	mdelay(10);
-	gpio_set_value(GPIO_ENET_PHY_RESET, 1);
-
-	return 0;
-}
 
 /* mux the Apalis GPIO pins, so they can be used from the U-Boot cmdline */
 iomux_v3_cfg_t const gpio_pads[] = {
@@ -285,7 +332,7 @@ int board_ehci_hcd_init(int port)
 }
 #endif
 
-#if defined(CONFIG_FSL_ESDHC) && defined(CONFIG_SPL_BUILD)
+#if defined(CONFIG_FSL_ESDHC_IMX) && defined(CONFIG_SPL_BUILD)
 /* use the following sequence: eMMC, MMC1, SD1 */
 struct fsl_esdhc_cfg usdhc_cfg[CONFIG_SYS_FSL_USDHC_NUM] = {
 	{USDHC3_BASE_ADDR},
@@ -355,48 +402,13 @@ int board_mmc_init(bd_t *bis)
 
 	return fsl_esdhc_initialize(bis, &usdhc_cfg[0]);
 }
-#endif /* CONFIG_FSL_ESDHC & CONFIG_SPL_BUILD */
+#endif /* CONFIG_FSL_ESDHC_IMX & CONFIG_SPL_BUILD */
 
 int board_phy_config(struct phy_device *phydev)
 {
 	mx6_rgmii_rework(phydev);
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
-
-	return 0;
-}
-
-int board_eth_init(bd_t *bis)
-{
-	uint32_t base = IMX_FEC_BASE;
-	struct mii_dev *bus = NULL;
-	struct phy_device *phydev = NULL;
-	int ret;
-
-	setup_iomux_enet();
-
-#ifdef CONFIG_FEC_MXC
-	bus = fec_get_miibus(base, -1);
-	if (!bus)
-		return 0;
-
-	bus->reset = reset_enet_phy;
-	/* scan PHY 4,5,6,7 */
-	phydev = phy_find_by_mask(bus, (0xf << 4), PHY_INTERFACE_MODE_RGMII);
-	if (!phydev) {
-		free(bus);
-		puts("no PHY found\n");
-		return 0;
-	}
-
-	printf("using PHY at %d\n", phydev->addr);
-	ret = fec_probe(bis, -1, base, bus, phydev);
-	if (ret) {
-		printf("FEC MXC: %s:failed\n", __func__);
-		free(phydev);
-		free(bus);
-	}
-#endif /* CONFIG_FEC_MXC */
 
 	return 0;
 }
@@ -1116,6 +1128,16 @@ void board_init_f(ulong dummy)
 	board_init_r(NULL, 0);
 }
 
+#ifdef CONFIG_SPL_LOAD_FIT
+int board_fit_config_name_match(const char *name)
+{
+	if (!strcmp(name, "imx6-apalis"))
+		return 0;
+
+	return -1;
+}
+#endif
+
 void reset_cpu(ulong addr)
 {
 }
@@ -1131,52 +1153,3 @@ U_BOOT_DEVICE(mxc_serial) = {
 	.name = "serial_mxc",
 	.platdata = &mxc_serial_plat,
 };
-
-#if CONFIG_IS_ENABLED(AHCI)
-static int sata_imx_probe(struct udevice *dev)
-{
-	int i, err;
-
-	for (i = 0; i < APALIS_IMX6_SATA_INIT_RETRIES; i++) {
-		err = setup_sata();
-		if (err) {
-			printf("SATA setup failed: %d\n", err);
-			return err;
-		}
-
-		udelay(100);
-
-		err = dwc_ahsata_probe(dev);
-		if (!err)
-			break;
-
-		/* There is no device on the SATA port */
-		if (sata_dm_port_status(0, 0) == 0)
-			break;
-
-		/* There's a device, but link not established. Retry */
-		device_remove(dev, DM_REMOVE_NORMAL);
-	}
-
-	return 0;
-}
-
-struct ahci_ops sata_imx_ops = {
-	.port_status = dwc_ahsata_port_status,
-	.reset	= dwc_ahsata_bus_reset,
-	.scan	= dwc_ahsata_scan,
-};
-
-static const struct udevice_id sata_imx_ids[] = {
-	{ .compatible = "fsl,imx6q-ahci" },
-	{ }
-};
-
-U_BOOT_DRIVER(sata_imx) = {
-	.name		= "dwc_ahci",
-	.id		= UCLASS_AHCI,
-	.of_match	= sata_imx_ids,
-	.ops		= &sata_imx_ops,
-	.probe		= sata_imx_probe,
-};
-#endif /* AHCI */

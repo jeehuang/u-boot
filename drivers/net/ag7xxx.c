@@ -7,11 +7,18 @@
  */
 
 #include <common.h>
+#include <clock_legacy.h>
+#include <cpu_func.h>
 #include <dm.h>
 #include <errno.h>
+#include <log.h>
 #include <miiphy.h>
 #include <malloc.h>
+#include <net.h>
+#include <asm/cache.h>
+#include <linux/bitops.h>
 #include <linux/compiler.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/mii.h>
 #include <wait_bit.h>

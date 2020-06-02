@@ -14,6 +14,7 @@
  * write to this register. Inform Linux to it too
  */
 
+#include <log.h>
 #include <asm/io.h>
 #include <asm/arch/at91_wdt.h>
 #include <common.h>
@@ -106,14 +107,6 @@ static int at91_wdt_probe(struct udevice *dev)
 	priv->regs = dev_remap_addr(dev);
 	if (!priv->regs)
 		return -EINVAL;
-
-#if CONFIG_IS_ENABLED(OF_CONTROL)
-	priv->timeout = dev_read_u32_default(dev, "timeout-sec",
-					     WDT_DEFAULT_TIMEOUT);
-	debug("%s: timeout %d", __func__, priv->timeout);
-#else
-	priv->timeout = WDT_DEFAULT_TIMEOUT;
-#endif
 
 	debug("%s: Probing wdt%u\n", __func__, dev->seq);
 

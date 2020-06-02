@@ -4,11 +4,15 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <dm.h>
+#include <log.h>
+#include <malloc.h>
 #include <mapmem.h>
 #include <stdio_dev.h>
 #include <video.h>
 #include <video_console.h>
+#include <asm/cache.h>
 #include <dm/lists.h>
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
@@ -91,22 +95,24 @@ int video_clear(struct udevice *dev)
 	struct video_priv *priv = dev_get_uclass_priv(dev);
 
 	switch (priv->bpix) {
-	case VIDEO_BPP16: {
-		u16 *ppix = priv->fb;
-		u16 *end = priv->fb + priv->fb_size;
+	case VIDEO_BPP16:
+		if (IS_ENABLED(CONFIG_VIDEO_BPP16)) {
+			u16 *ppix = priv->fb;
+			u16 *end = priv->fb + priv->fb_size;
 
-		while (ppix < end)
-			*ppix++ = priv->colour_bg;
-		break;
-	}
-	case VIDEO_BPP32: {
-		u32 *ppix = priv->fb;
-		u32 *end = priv->fb + priv->fb_size;
+			while (ppix < end)
+				*ppix++ = priv->colour_bg;
+			break;
+		}
+	case VIDEO_BPP32:
+		if (IS_ENABLED(CONFIG_VIDEO_BPP32)) {
+			u32 *ppix = priv->fb;
+			u32 *end = priv->fb + priv->fb_size;
 
-		while (ppix < end)
-			*ppix++ = priv->colour_bg;
-		break;
-	}
+			while (ppix < end)
+				*ppix++ = priv->colour_bg;
+			break;
+		}
 	default:
 		memset(priv->fb, priv->colour_bg, priv->fb_size);
 		break;
@@ -120,14 +126,14 @@ void video_set_default_colors(struct udevice *dev, bool invert)
 	struct video_priv *priv = dev_get_uclass_priv(dev);
 	int fore, back;
 
-#ifdef CONFIG_SYS_WHITE_ON_BLACK
-	/* White is used when switching to bold, use light gray here */
-	fore = VID_LIGHT_GRAY;
-	back = VID_BLACK;
-#else
-	fore = VID_BLACK;
-	back = VID_WHITE;
-#endif
+	if (CONFIG_IS_ENABLED(SYS_WHITE_ON_BLACK)) {
+		/* White is used when switching to bold, use light gray here */
+		fore = VID_LIGHT_GRAY;
+		back = VID_BLACK;
+	} else {
+		fore = VID_BLACK;
+		back = VID_WHITE;
+	}
 	if (invert) {
 		int temp;
 
@@ -149,7 +155,7 @@ void video_sync(struct udevice *vid, bool force)
 	 * architectures do not actually implement it. Is there a way to find
 	 * out whether it exists? For now, ARM is safe.
 	 */
-#if defined(CONFIG_ARM) && !defined(CONFIG_SYS_DCACHE_OFF)
+#if defined(CONFIG_ARM) && !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 	struct video_priv *priv = dev_get_uclass_priv(vid);
 
 	if (priv->flush_dcache) {
@@ -291,7 +297,9 @@ static int video_post_bind(struct udevice *dev)
 		return 0;
 	size = alloc_fb(dev, &addr);
 	if (addr < gd->video_bottom) {
-		/* Device tree node may need the 'u-boot,dm-pre-reloc' tag */
+		/* Device tree node may need the 'u-boot,dm-pre-reloc' or
+		 * 'u-boot,dm-pre-proper' tag
+		 */
 		printf("Video device '%s' cannot allocate frame buffer memory -ensure the device is set up before relocation\n",
 		       dev->name);
 		return -ENOSPC;

@@ -4,6 +4,7 @@
  */
 
 #include <common.h>
+#include <clock_legacy.h>
 #include <dm.h>
 #include <div64.h>
 #include <errno.h>
@@ -12,6 +13,7 @@
 #include <asm/addrspace.h>
 #include <asm/types.h>
 #include <dm/pinctrl.h>
+#include <linux/bitops.h>
 #include <mach/ar71xx_regs.h>
 
 #define AR933X_UART_DATA_REG            0x00

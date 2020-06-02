@@ -5,10 +5,9 @@
 # Entry-type module for tpl/u-boot-tpl.bin
 #
 
-import elf
-
-from entry import Entry
-from blob import Entry_blob
+from binman import elf
+from binman.entry import Entry
+from binman.etype.blob import Entry_blob
 
 class Entry_u_boot_tpl(Entry_blob):
     """U-Boot TPL binary
@@ -40,4 +39,4 @@ class Entry_u_boot_tpl(Entry_blob):
         return 'tpl/u-boot-tpl.bin'
 
     def WriteSymbols(self, section):
-        elf.LookupAndWriteSymbols(self.elf_fname, self, section)
+        elf.LookupAndWriteSymbols(self.elf_fname, self, section.GetImage())

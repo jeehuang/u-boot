@@ -15,6 +15,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/stringify.h>
 #include <linux/types.h>
 
 struct bcmstb_boot_parameters {
@@ -129,7 +130,6 @@ extern phys_addr_t prior_stage_fdt_address;
 #define CONFIG_CMD_ASKENV
 #define CONFIG_CMD_CACHE
 #define CONFIG_CMD_EXT2
-#define CONFIG_CMD_MMC
 
 /*
  * Flash configuration.
@@ -149,18 +149,11 @@ extern phys_addr_t prior_stage_fdt_address;
 /*
  * Environment configuration.
  */
-#define CONFIG_SYS_REDUNDAND_ENVIRONMENT
-#define CONFIG_ENV_SIZE			(64 << 10) /* 64 KiB */
-#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
 #define CONFIG_ENV_OVERWRITE
 
 /*
  * Save the prior stage provided DTB.
  */
-#define CONFIG_PREBOOT					\
-	"fdt addr ${fdtcontroladdr};"			\
-	"fdt move ${fdtcontroladdr} ${fdtsaveaddr};"	\
-	"fdt addr ${fdtsaveaddr};"
 /*
  * Enable in-place RFS with this initrd_high setting.
  */

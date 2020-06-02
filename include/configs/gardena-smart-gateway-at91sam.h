@@ -9,6 +9,10 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+#ifndef __ASSEMBLY__
+#include <linux/bitops.h>
+#endif
+
 /* ARM asynchronous clock */
 #define CONFIG_SYS_AT91_SLOW_CLOCK	32768
 #define CONFIG_SYS_AT91_MAIN_CLOCK	12000000	/* 12 MHz crystal */
@@ -43,14 +47,7 @@
 
 #define CONFIG_SYS_LOAD_ADDR		0x22000000	/* load address */
 
-/* environment organization */
-#define CONFIG_ENV_UBI_PART		"ubi"
-#define CONFIG_ENV_UBI_VOLUME		"env"
-#define CONFIG_ENV_UBI_VOLUME_REDUND	"env_r"
-#define CONFIG_ENV_SIZE			(64 << 10)
-
 /* SPL */
-#define CONFIG_SPL_TEXT_BASE		0x300000
 #define CONFIG_SPL_MAX_SIZE		0x7000
 #define CONFIG_SPL_STACK		0x308000
 
@@ -71,7 +68,6 @@
 #define CONFIG_SPL_NAND_RAW_ONLY
 #define CONFIG_SYS_NAND_U_BOOT_OFFS	0x40000
 #define CONFIG_SYS_NAND_U_BOOT_SIZE	0xa0000
-#define	CONFIG_SYS_UBOOT_START		CONFIG_SYS_TEXT_BASE
 #define	CONFIG_SYS_NAND_U_BOOT_START	CONFIG_SYS_TEXT_BASE
 #define CONFIG_SYS_NAND_U_BOOT_DST	CONFIG_SYS_TEXT_BASE
 

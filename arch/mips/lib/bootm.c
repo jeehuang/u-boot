@@ -5,8 +5,12 @@
  */
 
 #include <common.h>
+#include <bootstage.h>
+#include <env.h>
 #include <image.h>
 #include <fdt_support.h>
+#include <lmb.h>
+#include <log.h>
 #include <asm/addrspace.h>
 #include <asm/io.h>
 
@@ -247,6 +251,8 @@ int arch_fixup_fdt(void *blob)
 
 static int boot_setup_fdt(bootm_headers_t *images)
 {
+	images->initrd_start = virt_to_phys((void *)images->initrd_start);
+	images->initrd_end = virt_to_phys((void *)images->initrd_end);
 	return image_setup_libfdt(images, images->ft_addr, images->ft_len,
 		&images->lmb);
 }
@@ -291,6 +297,9 @@ static void boot_jump_linux(bootm_headers_t *images)
 	bootstage_report();
 #endif
 
+	if (CONFIG_IS_ENABLED(RESTORE_EXCEPTION_VECTOR_BASE))
+		trap_restore();
+
 	if (images->ft_len)
 		kernel(-2, (ulong)images->ft_addr, 0, 0);
 	else
@@ -298,8 +307,8 @@ static void boot_jump_linux(bootm_headers_t *images)
 			linux_extra);
 }
 
-int do_bootm_linux(int flag, int argc, char * const argv[],
-			bootm_headers_t *images)
+int do_bootm_linux(int flag, int argc, char *const argv[],
+		   bootm_headers_t *images)
 {
 	/* No need for those on MIPS */
 	if (flag & BOOTM_STATE_OS_BD_T)

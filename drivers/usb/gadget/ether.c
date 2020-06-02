@@ -9,7 +9,9 @@
 
 #include <common.h>
 #include <console.h>
-#include <environment.h>
+#include <env.h>
+#include <log.h>
+#include <part.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/usb/ch9.h>
@@ -2472,8 +2474,7 @@ static int _usb_eth_send(struct ether_priv *priv, void *packet, int length)
 		}
 		usb_gadget_handle_interrupts(0);
 	}
-	if (rndis_pkt)
-		free(rndis_pkt);
+	free(rndis_pkt);
 
 	return 0;
 drop:

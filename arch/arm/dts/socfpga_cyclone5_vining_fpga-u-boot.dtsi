@@ -6,14 +6,12 @@
  * Copyright (c) 2018 Simon Goldschmidt
  */
 
+#include "socfpga-common-u-boot.dtsi"
+
 /{
 	aliases {
 		spi0 = "/soc/spi@ff705000";
 		udc0 = &usb0;
-	};
-
-	soc {
-		u-boot,dm-pre-reloc;
 	};
 };
 
@@ -22,7 +20,7 @@
 };
 
 &mmc {
-	u-boot,dm-pre-reloc;
+	status = "disabled";
 };
 
 &qspi {
@@ -57,4 +55,8 @@
 
 &portc {
 	bank-name = "portc";
+};
+
+&watchdog0 {
+	u-boot,dm-pre-reloc;
 };

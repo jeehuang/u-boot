@@ -28,7 +28,6 @@
 #define CONFIG_MXC_NAND_IP_REGS_BASE	NFC_BASE_ADDR
 #define CONFIG_SYS_NAND_LARGEPAGE
 #define CONFIG_MXC_NAND_HWECC
-#define CONFIG_SYS_NAND_USE_FLASH_BBT
 
 #define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE	UART1_BASE
@@ -147,9 +146,6 @@
 
 /* Miscellaneous configurable options */
 
-#define CONFIG_SYS_MEMTEST_START       0x70000000
-#define CONFIG_SYS_MEMTEST_END         0x70010000
-
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 
 /* Physical Memory Map */
@@ -169,8 +165,6 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* environment organization */
-#define CONFIG_ENV_OFFSET      (6 * 64 * 1024)
-#define CONFIG_ENV_SIZE        (8 * 1024)
 #define CONFIG_SYS_MMC_ENV_DEV	0
 
 #define MX53ARD_CS1GCR1		(CSEN | DSZ(2))

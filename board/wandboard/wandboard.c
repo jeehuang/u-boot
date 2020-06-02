@@ -6,6 +6,10 @@
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
  */
 
+#include <common.h>
+#include <image.h>
+#include <init.h>
+#include <log.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/iomux.h>
@@ -20,6 +24,8 @@
 #include <asm/mach-imx/video.h>
 #include <asm/mach-imx/sata.h>
 #include <asm/io.h>
+#include <env.h>
+#include <linux/delay.h>
 #include <linux/sizes.h>
 #include <common.h>
 #include <miiphy.h>
@@ -46,6 +52,15 @@ DECLARE_GLOBAL_DATA_PTR;
 #define ETH_PHY_AR8035_POWER	IMX_GPIO_NR(7, 13)
 #define REV_DETECTION		IMX_GPIO_NR(2, 28)
 
+/* Speed defined in Kconfig is only applicable when not using DM_I2C.  */
+#ifdef CONFIG_DM_I2C
+#define I2C1_SPEED_NON_DM	0
+#define I2C2_SPEED_NON_DM	0
+#else
+#define I2C1_SPEED_NON_DM	CONFIG_SYS_MXC_I2C1_SPEED
+#define I2C2_SPEED_NON_DM	CONFIG_SYS_MXC_I2C2_SPEED
+#endif
+
 static bool with_pmic;
 
 int dram_init(void)
@@ -61,21 +76,6 @@ static iomux_v3_cfg_t const uart1_pads[] = {
 };
 
 static iomux_v3_cfg_t const enet_pads[] = {
-	IOMUX_PADS(PAD_ENET_MDIO__ENET_MDIO  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_ENET_MDC__ENET_MDC    | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TXC__RGMII_TXC  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD0__RGMII_TD0  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD1__RGMII_TD1  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD2__RGMII_TD2  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TD3__RGMII_TD3  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_TX_CTL__RGMII_TX_CTL | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_ENET_REF_CLK__ENET_TX_CLK  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RXC__RGMII_RXC  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD0__RGMII_RD0  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD1__RGMII_RD1  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD2__RGMII_RD2  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RD3__RGMII_RD3  | MUX_PAD_CTRL(ENET_PAD_CTRL)),
-	IOMUX_PADS(PAD_RGMII_RX_CTL__RGMII_RX_CTL | MUX_PAD_CTRL(ENET_PAD_CTRL)),
 	/* AR8031 PHY Reset */
 	IOMUX_PADS(PAD_EIM_D29__GPIO3_IO29    | MUX_PAD_CTRL(NO_PAD_CTRL)),
 };
@@ -348,13 +348,6 @@ static void setup_display(void)
 }
 #endif /* CONFIG_VIDEO_IPUV3 */
 
-int board_eth_init(bd_t *bis)
-{
-	setup_iomux_enet();
-
-	return cpu_eth_init(bis);
-}
-
 int board_early_init_f(void)
 {
 	setup_iomux_uart();
@@ -372,17 +365,15 @@ int power_init_board(void)
 	struct udevice *dev;
 	int reg, ret;
 
-	puts("PMIC:  ");
-
-	ret = pmic_get("pfuze100", &dev);
+	ret = pmic_get("pfuze100@8", &dev);
 	if (ret < 0) {
-		printf("pmic_get() ret %d\n", ret);
+		debug("pmic_get() ret %d\n", ret);
 		return 0;
 	}
 
 	reg = pmic_reg_read(dev, PFUZE100_DEVICEID);
 	if (reg < 0) {
-		printf("pmic_reg_read() ret %d\n", reg);
+		debug("pmic_reg_read() ret %d\n", reg);
 		return 0;
 	}
 	printf("PMIC:  PFUZE100 ID=0x%02x\n", reg);
@@ -417,6 +408,7 @@ static const struct boot_mode board_boot_modes[] = {
 static bool is_revc1(void)
 {
 	SETUP_IOMUX_PADS(rev_detection_pad);
+	gpio_request(REV_DETECTION, "REV_DETECT");
 	gpio_direction_input(REV_DETECTION);
 
 	if (gpio_get_value(REV_DETECTION))
@@ -454,33 +446,7 @@ int board_late_init(void)
 	else
 		env_set("board_name", "B1");
 #endif
-	return 0;
-}
-
-int board_init(void)
-{
-	/* address of boot parameters */
-	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
-
-#if defined(CONFIG_VIDEO_IPUV3)
-	setup_i2c(1, CONFIG_SYS_MXC_I2C1_SPEED, 0x7f, &mx6dl_i2c2_pad_info);
-	if (is_mx6dq() || is_mx6dqp()) {
-		setup_i2c(1, CONFIG_SYS_MXC_I2C1_SPEED, 0x7f, &mx6q_i2c2_pad_info);
-		setup_i2c(2, CONFIG_SYS_MXC_I2C2_SPEED, 0x7f, &mx6q_i2c3_pad_info);
-	} else {
-		setup_i2c(1, CONFIG_SYS_MXC_I2C1_SPEED, 0x7f, &mx6dl_i2c2_pad_info);
-		setup_i2c(2, CONFIG_SYS_MXC_I2C2_SPEED, 0x7f, &mx6dl_i2c3_pad_info);
-	}
-
-	setup_display();
-#endif
-
-	return 0;
-}
-
-int checkboard(void)
-{
-	gpio_request(REV_DETECTION, "REV_DETECT");
+	setup_iomux_enet();
 
 	if (is_revd1())
 		puts("Board: Wandboard rev D1\n");
@@ -491,3 +457,42 @@ int checkboard(void)
 
 	return 0;
 }
+
+int board_init(void)
+{
+	/* address of boot parameters */
+	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
+
+#if defined(CONFIG_VIDEO_IPUV3)
+	setup_i2c(1, I2C1_SPEED_NON_DM, 0x7f, &mx6dl_i2c2_pad_info);
+	if (is_mx6dq() || is_mx6dqp()) {
+		setup_i2c(1, I2C1_SPEED_NON_DM, 0x7f, &mx6q_i2c2_pad_info);
+		setup_i2c(2, I2C2_SPEED_NON_DM, 0x7f, &mx6q_i2c3_pad_info);
+	} else {
+		setup_i2c(1, I2C1_SPEED_NON_DM, 0x7f, &mx6dl_i2c2_pad_info);
+		setup_i2c(2, I2C2_SPEED_NON_DM, 0x7f, &mx6dl_i2c3_pad_info);
+	}
+
+	setup_display();
+#endif
+
+	return 0;
+}
+
+#ifdef CONFIG_SPL_LOAD_FIT
+int board_fit_config_name_match(const char *name)
+{
+	if (is_mx6dq()) {
+		if (!strcmp(name, "imx6q-wandboard-revd1"))
+			return 0;
+	} else if (is_mx6dqp()) {
+		if (!strcmp(name, "imx6qp-wandboard-revd1"))
+			return 0;
+	} else if (is_mx6dl() || is_mx6solo()) {
+		if (!strcmp(name, "imx6dl-wandboard-revd1"))
+			return 0;
+	}
+
+	return -EINVAL;
+}
+#endif

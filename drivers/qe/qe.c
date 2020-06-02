@@ -14,7 +14,7 @@
 #include <linux/immap_qe.h>
 #include <fsl_qe.h>
 #include <mmc.h>
-#include <environment.h>
+#include <u-boot/crc.h>
 
 #ifdef CONFIG_ARCH_LS1021A
 #include <asm/arch/immap_ls102xa.h>
@@ -119,7 +119,7 @@ static void qe_sdma_init(void)
  */
 static u8 thread_snum[] = {
 /* Evthreads 16-29 are not supported in MPC8309 */
-#if !defined(CONFIG_MPC8309)
+#if !defined(CONFIG_ARCH_MPC8309)
 	0x04, 0x05, 0x0c, 0x0d,
 	0x14, 0x15, 0x1c, 0x1d,
 	0x24, 0x25, 0x2c, 0x2d,
@@ -440,7 +440,8 @@ static void qe_upload_microcode(const void *base,
 /*
  * Upload a microcode to the I-RAM at a specific address.
  *
- * See docs/README.qe_firmware for information on QE microcode uploading.
+ * See Documentation/powerpc/qe_firmware.rst in the Linux kernel tree for
+ * information on QE microcode uploading.
  *
  * Currently, only version 1 is supported, so the 'version' field must be
  * set to 1.
@@ -579,7 +580,8 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 /*
  * Upload a microcode to the I-RAM at a specific address.
  *
- * See docs/README.qe_firmware for information on QE microcode uploading.
+ * See Documentation/powerpc/qe_firmware.rst in the Linux kernel tree for
+ * information on QE microcode uploading.
  *
  * Currently, only version 1 is supported, so the 'version' field must be
  * set to 1.
@@ -779,7 +781,7 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 	return qe_firmware_uploaded ? &qe_firmware_info : NULL;
 }
 
-static int qe_cmd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int qe_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	ulong addr;
 

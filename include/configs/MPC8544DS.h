@@ -16,13 +16,13 @@
 #define CONFIG_PCIE3		1	/* PCIE controller 3 (ULI bridge) */
 #define CONFIG_FSL_PCI_INIT	1	/* Use common FSL init code */
 #define CONFIG_PCI_INDIRECT_BRIDGE 1	/* indirect PCI bridge support */
-#define CONFIG_FSL_PCIE_RESET	1	/* need PCIe reset errata */
 #define CONFIG_SYS_PCI_64BIT	1	/* enable 64-bit PCI resources */
 
 #define CONFIG_ENV_OVERWRITE
 #define CONFIG_INTERRUPTS		/* enable pci, srio, ddr interrupts */
 
 #ifndef __ASSEMBLY__
+#include <linux/stringify.h>
 extern unsigned long get_board_sys_clk(unsigned long dummy);
 #endif
 #define CONFIG_SYS_CLK_FREQ	get_board_sys_clk(0) /* sysclk for MPC85xx */
@@ -37,9 +37,6 @@ extern unsigned long get_board_sys_clk(unsigned long dummy);
  * Only possible on E500 Version 2 or newer cores.
  */
 #define CONFIG_ENABLE_36BIT_PHYS	1
-
-#define CONFIG_SYS_MEMTEST_START	0x00200000	/* memtest works on */
-#define CONFIG_SYS_MEMTEST_END		0x00400000
 
 #define CONFIG_SYS_CCSRBAR		0xe0000000
 #define CONFIG_SYS_CCSRBAR_PHYS_LOW	CONFIG_SYS_CCSRBAR
@@ -308,13 +305,6 @@ extern unsigned long get_board_sys_clk(unsigned long dummy);
 /*
  * Environment
  */
-#define CONFIG_ENV_SECT_SIZE	0x10000 /* 64K (one sector) */
-#if CONFIG_SYS_MONITOR_BASE > 0xfff80000
-#define CONFIG_ENV_ADDR		0xfff80000
-#else
-#define CONFIG_ENV_ADDR		(CONFIG_SYS_MONITOR_BASE - CONFIG_ENV_SECT_SIZE)
-#endif
-#define CONFIG_ENV_SIZE		0x2000
 
 #define CONFIG_LOADS_ECHO	1	/* echo on for serial download */
 #define CONFIG_SYS_LOADS_BAUD_CHANGE	1	/* allow baudrate change */

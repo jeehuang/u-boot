@@ -9,10 +9,12 @@
 #include <clk.h>
 #include <dm.h>
 #include <errno.h>
+#include <malloc.h>
 #include <watchdog.h>
 #include <serial.h>
 #include <debug_uart.h>
 #include <linux/compiler.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #ifdef CONFIG_DM_SERIAL

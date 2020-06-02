@@ -15,6 +15,8 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#include <linux/stringify.h>
+
 /* High Level Configuration Options */
 #define CONFIG_LINUX_RESET_VEC	0x100	/* Reset vector used by Linux */
 #define CONFIG_ADDR_MAP		1	/* Use addr map */
@@ -45,7 +47,6 @@
 #define CONFIG_ENV_OVERWRITE
 
 #define CONFIG_BAT_RW		1	/* Use common BAT rw code */
-#define CONFIG_HIGH_BATS	1	/* High BATs supported and enabled */
 #define CONFIG_SYS_NUM_ADDR_MAP 8	/* Number of addr map slots = 8 dbats */
 
 #define CONFIG_ALTIVEC		1
@@ -63,9 +64,6 @@ extern unsigned long get_board_sys_clk(unsigned long dummy);
 #endif
 #define CONFIG_SYS_CLK_FREQ	get_board_sys_clk(0)
 #endif
-
-#define CONFIG_SYS_MEMTEST_START	0x00200000	/* memtest region */
-#define CONFIG_SYS_MEMTEST_END		0x00400000
 
 /*
  * With the exception of PCI Memory and Rapid IO, most devices will simply
@@ -546,14 +544,6 @@ extern unsigned long get_board_sys_clk(unsigned long dummy);
 /*
  * Environment
  */
-#ifndef CONFIG_SYS_RAMBOOT
-    #define CONFIG_ENV_ADDR		\
-			(CONFIG_SYS_MONITOR_BASE + CONFIG_SYS_MONITOR_LEN)
-    #define CONFIG_ENV_SECT_SIZE		0x10000	/* 64K(one sector) for env */
-#else
-    #define CONFIG_ENV_ADDR		(CONFIG_SYS_MONITOR_BASE - 0x1000)
-#endif
-#define CONFIG_ENV_SIZE		0x2000
 
 #define CONFIG_LOADS_ECHO	1	/* echo on for serial download */
 #define CONFIG_SYS_LOADS_BAUD_CHANGE	1	/* allow baudrate change */

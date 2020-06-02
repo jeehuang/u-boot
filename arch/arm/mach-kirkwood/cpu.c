@@ -6,6 +6,12 @@
  */
 
 #include <common.h>
+#include <command.h>
+#include <cpu_func.h>
+#include <env.h>
+#include <init.h>
+#include <log.h>
+#include <net.h>
 #include <netdev.h>
 #include <asm/cache.h>
 #include <asm/io.h>

@@ -5,9 +5,9 @@
 # Entry-type module for a U-Boot binary with an embedded microcode pointer
 #
 
-from entry import Entry
-from blob import Entry_blob
-import tools
+from binman.entry import Entry
+from binman.etype.blob import Entry_blob
+from patman import tools
 
 class Entry_u_boot_ucode(Entry_blob):
     """U-Boot microcode block
@@ -69,7 +69,7 @@ class Entry_u_boot_ucode(Entry_blob):
             if entry and entry.target_offset:
                 found = True
         if not found:
-            self.data = ''
+            self.data = b''
             return True
         # Get the microcode from the device tree entry. If it is not available
         # yet, return False so we will be called later. If the section simply
@@ -87,7 +87,7 @@ class Entry_u_boot_ucode(Entry_blob):
 
         if not fdt_entry.collate:
             # This binary can be empty
-            self.data = ''
+            self.data = b''
             return True
 
         # Write it out to a file

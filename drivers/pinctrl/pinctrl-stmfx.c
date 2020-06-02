@@ -11,9 +11,12 @@
 #include <asm/gpio.h>
 #include <dm/device.h>
 #include <dm/device-internal.h>
+#include <dm/device_compat.h>
 #include <dm/lists.h>
 #include <dm/pinctrl.h>
 #include <linux/bitfield.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
 #include <power/regulator.h>
 
 /* STMFX pins = GPIO[15:0] + aGPIO[7:0] */
@@ -231,23 +234,23 @@ static int stmfx_pinctrl_conf_set(struct udevice *dev, unsigned int pin,
 	switch (param) {
 	case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
 	case PIN_CONFIG_BIAS_DISABLE:
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		ret = stmfx_pinctrl_set_type(dev, pin, 0);
+		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
+		ret = stmfx_pinctrl_set_type(dev, pin, 1);
+		if (ret)
+			return ret;
 		ret = stmfx_pinctrl_set_pupd(dev, pin, 0);
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
+		ret = stmfx_pinctrl_set_type(dev, pin, 1);
+		if (ret)
+			return ret;
 		ret = stmfx_pinctrl_set_pupd(dev, pin, 1);
 		break;
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		if (dir == GPIOF_OUTPUT)
-			ret = stmfx_pinctrl_set_type(dev, pin, 1);
-		else
-			ret = stmfx_pinctrl_set_type(dev, pin, 0);
-		break;
-	case PIN_CONFIG_DRIVE_PUSH_PULL:
-		if (dir == GPIOF_OUTPUT)
-			ret = stmfx_pinctrl_set_type(dev, pin, 0);
-		else
-			ret = stmfx_pinctrl_set_type(dev, pin, 1);
+		ret = stmfx_pinctrl_set_type(dev, pin, 1);
 		break;
 	case PIN_CONFIG_OUTPUT:
 		ret = stmfx_gpio_direction_output(plat->gpio, pin, arg);
@@ -351,11 +354,12 @@ static int stmfx_chip_init(struct udevice *dev)
 	int ret;
 	struct dm_i2c_chip *chip = dev_get_parent_platdata(dev);
 
-	id = dm_i2c_reg_read(dev, STMFX_REG_CHIP_ID);
-	if (id < 0) {
-		dev_err(dev, "error reading chip id: %d\n", id);
+	ret = dm_i2c_reg_read(dev, STMFX_REG_CHIP_ID);
+	if (ret < 0) {
+		dev_err(dev, "error reading chip id: %d\n", ret);
 		return ret;
 	}
+	id = (u8)ret;
 	/*
 	 * Check that ID is the complement of the I2C address:
 	 * STMFX I2C address follows the 7-bit format (MSB), that's why

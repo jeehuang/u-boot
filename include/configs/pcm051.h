@@ -21,7 +21,6 @@
 
 #include <configs/ti_am335x_common.h>
 
-#define CONFIG_ENV_SIZE			(128 << 10)	/* 128 KiB */
 #define CONFIG_MACH_TYPE		MACH_TYPE_PCM051
 
 /* set to negative value for no autoboot */
@@ -95,9 +94,6 @@
  * memtest works on 8 MB in DRAM after skipping 32MB from
  * start addr of ram disk
  */
-#define CONFIG_SYS_MEMTEST_START	(CONFIG_SYS_SDRAM_BASE + (64 << 20))
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START \
-					+ (8 * 1024 * 1024))
 
 /* NS16550 Configuration */
 #define CONFIG_SYS_NS16550_COM1		0x44e09000	/* Base EVM has UART0 */
@@ -118,7 +114,6 @@
 /* CPU */
 
 #ifdef CONFIG_SPI_BOOT
-#define CONFIG_SYS_SPI_U_BOOT_OFFS	0x20000
 #define CONFIG_SYS_SPI_U_BOOT_SIZE	0x40000
 #endif
 
@@ -129,7 +124,5 @@
 #define CONFIG_AM335X_USB0_MODE	MUSB_PERIPHERAL
 #define CONFIG_AM335X_USB1
 #define CONFIG_AM335X_USB1_MODE MUSB_HOST
-
-#define CONFIG_PHY_SMSC
 
 #endif	/* ! __CONFIG_PCM051_H */

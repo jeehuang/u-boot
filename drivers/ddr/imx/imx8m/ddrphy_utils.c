@@ -5,6 +5,7 @@
 
 #include <common.h>
 #include <errno.h>
+#include <log.h>
 #include <asm/io.h>
 #include <asm/arch/ddr.h>
 #include <asm/arch/clock.h>
@@ -84,7 +85,7 @@ static inline void decode_streaming_message(void)
 	debug("\n");
 }
 
-void wait_ddrphy_training_complete(void)
+int wait_ddrphy_training_complete(void)
 {
 	unsigned int mail;
 
@@ -95,10 +96,10 @@ void wait_ddrphy_training_complete(void)
 			decode_streaming_message();
 		} else if (mail == 0x07) {
 			debug("Training PASS\n");
-			break;
+			return 0;
 		} else if (mail == 0xff) {
-			printf("Training FAILED\n");
-			break;
+			debug("Training FAILED\n");
+			return -1;
 		}
 	}
 }
@@ -106,6 +107,10 @@ void wait_ddrphy_training_complete(void)
 void ddrphy_init_set_dfi_clk(unsigned int drate)
 {
 	switch (drate) {
+	case 4000:
+		dram_pll_init(MHZ(1000));
+		dram_disable_bypass();
+		break;
 	case 3200:
 		dram_pll_init(MHZ(800));
 		dram_disable_bypass();
@@ -120,6 +125,10 @@ void ddrphy_init_set_dfi_clk(unsigned int drate)
 		break;
 	case 1600:
 		dram_pll_init(MHZ(400));
+		dram_disable_bypass();
+		break;
+	case 1066:
+		dram_pll_init(MHZ(266));
 		dram_disable_bypass();
 		break;
 	case 667:

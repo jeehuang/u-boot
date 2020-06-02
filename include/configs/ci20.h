@@ -25,8 +25,6 @@
 #define CONFIG_SYS_INIT_SP_OFFSET	0x400000
 #define CONFIG_SYS_LOAD_ADDR		0x81000000
 #define CONFIG_LOADADDR			CONFIG_SYS_LOAD_ADDR
-#define CONFIG_SYS_MEMTEST_START	0x80000000
-#define CONFIG_SYS_MEMTEST_END		0x88000000
 
 #define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
 
@@ -42,8 +40,6 @@
 
 /* Environment */
 #define CONFIG_SYS_MMC_ENV_DEV		0
-#define CONFIG_ENV_SIZE			(32 << 10)
-#define CONFIG_ENV_OFFSET		((14 + 512) << 10)
 #define CONFIG_ENV_OVERWRITE
 
 /* Command line configuration. */
@@ -59,7 +55,6 @@
 /* SPL */
 #define CONFIG_SPL_STACK		0xf4008000 /* only max. 2KB spare! */
 
-#define CONFIG_SPL_TEXT_BASE		0xf4000a00
 #define CONFIG_SPL_MAX_SIZE		((14 * 1024) - 0xa00)
 
 #define CONFIG_SPL_BSS_START_ADDR	0xf4004000

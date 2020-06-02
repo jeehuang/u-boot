@@ -8,9 +8,10 @@
  */
 
 #include <env_callback.h>
+#include <linux/stringify.h>
 
 #ifdef DEFAULT_ENV_INSTANCE_EMBEDDED
-env_t environment __UBOOT_ENV_SECTION__(environment) = {
+env_t embedded_environment __UBOOT_ENV_SECTION__(environment) = {
 	ENV_CRC,	/* CRC Sum */
 #ifdef CONFIG_SYS_REDUNDAND_ENVIRONMENT
 	1,		/* Flags: valid */

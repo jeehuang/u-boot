@@ -9,6 +9,8 @@
  */
 
 #ifndef __UBOOT__
+#include <log.h>
+#include <dm/devres.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -19,6 +21,7 @@
 
 #include <common.h>
 #include <malloc.h>
+#include <linux/bug.h>
 #include <linux/errno.h>
 #include <linux/compat.h>
 #include <ubi_uboot.h>

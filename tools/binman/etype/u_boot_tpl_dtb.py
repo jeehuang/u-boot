@@ -5,8 +5,8 @@
 # Entry-type module for U-Boot device tree in TPL (Tertiary Program Loader)
 #
 
-from entry import Entry
-from blob_dtb import Entry_blob_dtb
+from binman.entry import Entry
+from binman.etype.blob_dtb import Entry_blob_dtb
 
 class Entry_u_boot_tpl_dtb(Entry_blob_dtb):
     """U-Boot TPL device tree
@@ -23,3 +23,6 @@ class Entry_u_boot_tpl_dtb(Entry_blob_dtb):
 
     def GetDefaultFilename(self):
         return 'tpl/u-boot-tpl.dtb'
+
+    def GetFdtEtype(self):
+        return 'u-boot-tpl-dtb'

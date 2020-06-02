@@ -10,10 +10,12 @@ obj-y += syscon.o
 ifdef CONFIG_SPL_BUILD
 obj-y += spl.o
 else
+obj-$(CONFIG_CMD_STM32PROG) += cmd_stm32prog/
 obj-y += bsec.o
-ifndef CONFIG_STM32MP1_TRUSTED
-obj-$(CONFIG_SYSRESET) += cmd_poweroff.o
-endif
-endif
+obj-$(CONFIG_CMD_STM32KEY) += cmd_stm32key.o
 obj-$(CONFIG_ARMV7_PSCI) += psci.o
+obj-$(CONFIG_TFABOOT) += boot_params.o
+endif
+
 obj-$(CONFIG_$(SPL_)DM_REGULATOR) += pwr_regulator.o
+obj-$(CONFIG_OF_SYSTEM_SETUP) += fdt.o

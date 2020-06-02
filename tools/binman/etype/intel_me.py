@@ -5,8 +5,8 @@
 # Entry-type module for Intel Management Engine binary blob
 #
 
-from entry import Entry
-from blob import Entry_blob
+from binman.entry import Entry
+from binman.etype.blob import Entry_blob
 
 class Entry_intel_me(Entry_blob):
     """Entry containing an Intel Management Engine (ME) file
@@ -21,6 +21,8 @@ class Entry_intel_me(Entry_blob):
     does not directly execute code in the ME binary.
 
     A typical filename is 'me.bin'.
+
+    The position of this entry is generally set by the intel-descriptor entry.
 
     See README.x86 for information about x86 binary blobs.
     """

@@ -100,9 +100,6 @@
 
 /* Miscellaneous configurable options */
 
-#define CONFIG_SYS_MEMTEST_START       0x70000000
-#define CONFIG_SYS_MEMTEST_END         0x70010000
-
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 
 /* Physical Memory Map */
@@ -119,8 +116,6 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* environment organization */
-#define CONFIG_ENV_OFFSET      (6 * 64 * 1024)
-#define CONFIG_ENV_SIZE        (8 * 1024)
 #define CONFIG_SYS_MMC_ENV_DEV 0
 
 #endif				/* __CONFIG_H */

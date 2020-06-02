@@ -9,8 +9,11 @@
 #include <common.h>
 #include <dm.h>
 #include <backlight.h>
+#include <log.h>
+#include <malloc.h>
 #include <pwm.h>
 #include <asm/gpio.h>
+#include <linux/delay.h>
 #include <power/regulator.h>
 
 /**
@@ -67,6 +70,9 @@ static int set_pwm(struct pwm_backlight_priv *priv)
 		return log_ret(ret);
 
 	ret = pwm_set_invert(priv->pwm, priv->channel, priv->polarity);
+	if (ret == -ENOSYS && !priv->polarity)
+		ret = 0;
+
 	return log_ret(ret);
 }
 

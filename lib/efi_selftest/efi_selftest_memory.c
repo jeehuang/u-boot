@@ -33,8 +33,8 @@ static int setup(const efi_handle_t handle,
 	boottime = systable->boottime;
 
 	for (i = 0; i < systable->nr_tables; ++i) {
-		if (!efi_st_memcmp(&systable->tables[i].guid, &fdt_guid,
-				   sizeof(efi_guid_t))) {
+		if (!memcmp(&systable->tables[i].guid, &fdt_guid,
+			    sizeof(efi_guid_t))) {
 			if (fdt_addr) {
 				efi_st_error("Duplicate device tree\n");
 				return EFI_ST_FAILURE;
@@ -176,9 +176,9 @@ static int execute(void)
 	/* Check memory reservation for the device tree */
 	if (fdt_addr &&
 	    find_in_memory_map(map_size, memory_map, desc_size, fdt_addr,
-			       EFI_BOOT_SERVICES_DATA) != EFI_ST_SUCCESS) {
+			       EFI_ACPI_RECLAIM_MEMORY) != EFI_ST_SUCCESS) {
 		efi_st_error
-			("Device tree not marked as boot services data\n");
+			("Device tree not marked as ACPI reclaim memory\n");
 		return EFI_ST_FAILURE;
 	}
 	return EFI_ST_SUCCESS;

@@ -6,6 +6,8 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#include <linux/stringify.h>
+
 #if !defined(CONFIG_ARCH_P5020) && !defined(CONFIG_ARCH_P5040)
 #error Must call Cyrus CONFIG with a specific CPU enabled.
 #endif
@@ -51,8 +53,6 @@
 #if defined(CONFIG_SDCARD)
 #define CONFIG_FSL_FIXED_MMC_LOCATION
 #define CONFIG_SYS_MMC_ENV_DEV          0
-#define CONFIG_ENV_SIZE			0x2000
-#define CONFIG_ENV_OFFSET		(512 * 1658)
 #endif
 
 /*
@@ -77,8 +77,6 @@
 
 /* test POST memory test */
 #undef CONFIG_POST
-#define CONFIG_SYS_MEMTEST_START	0x00200000	/* memtest works on */
-#define CONFIG_SYS_MEMTEST_END		0x00400000
 
 /*
  *  Config the L3 Cache as L3 SRAM
@@ -342,15 +340,10 @@
  * about 825KB (1650 blocks), Env is stored after the image, and the env size is
  * 0x2000 (16 blocks), 8 + 1650 + 16 = 1674, enlarge it to 1680.
  */
-#define CONFIG_SYS_QE_FMAN_FW_IN_MMC
 #define CONFIG_SYS_FMAN_FW_ADDR	(512 * 1680)
 
 #define CONFIG_SYS_QE_FMAN_FW_LENGTH	0x10000
 #define CONFIG_SYS_FDT_PAD		(0x3000 + CONFIG_SYS_QE_FMAN_FW_LENGTH)
-
-#ifdef CONFIG_SYS_DPAA_FMAN
-#define CONFIG_FMAN_ENET
-#endif
 
 #ifdef CONFIG_PCI
 #define CONFIG_PCI_INDIRECT_BRIDGE

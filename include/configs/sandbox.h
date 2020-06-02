@@ -8,11 +8,11 @@
 
 #ifdef FTRACE
 #define CONFIG_TRACE
+#define CONFIG_CMD_TRACE
 #define CONFIG_TRACE_BUFFER_SIZE	(16 << 20)
-#define CONFIG_TRACE_EARLY_SIZE		(8 << 20)
+#define CONFIG_TRACE_EARLY_SIZE		(16 << 20)
 #define CONFIG_TRACE_EARLY
 #define CONFIG_TRACE_EARLY_ADDR		0x00100000
-
 #endif
 
 #ifndef CONFIG_SPL_BUILD
@@ -37,16 +37,12 @@
 
 /* turn on command-line edit/c/auto */
 
-#define CONFIG_ENV_SIZE		8192
-
 /* SPI - enable all SPI flash types for testing purposes */
 
 #define CONFIG_I2C_EDID
 
 /* Memory things - we don't really want a memory test */
 #define CONFIG_SYS_LOAD_ADDR		0x00000000
-#define CONFIG_SYS_MEMTEST_START	0x00100000
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x1000)
 #define CONFIG_SYS_FDT_LOAD_ADDR	        0x100
 
 #define CONFIG_PHYSMEM
@@ -63,7 +59,11 @@
 	func(HOST, host, 1) \
 	func(HOST, host, 0)
 
+#ifdef __ASSEMBLY__
+#define BOOTENV
+#else
 #include <config_distro_bootcmd.h>
+#endif
 
 #define CONFIG_KEEP_SERVERADDR
 #define CONFIG_UDP_CHECKSUM
@@ -71,7 +71,6 @@
 #define CONFIG_BOOTP_DNS2
 #define CONFIG_BOOTP_SEND_HOSTNAME
 #define CONFIG_BOOTP_SERVERIP
-#define CONFIG_IP_DEFRAG
 
 #ifndef SANDBOX_NO_SDL
 #define CONFIG_SANDBOX_SDL
@@ -114,9 +113,6 @@
 	SANDBOX_ETH_SETTINGS \
 	BOOTENV \
 	MEM_LAYOUT_ENV_SETTINGS
-
-#define CONFIG_GZIP_COMPRESSED
-#define CONFIG_BZIP2
 
 #ifndef CONFIG_SPL_BUILD
 #define CONFIG_SYS_IDE_MAXBUS		1

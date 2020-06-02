@@ -69,8 +69,6 @@
  * Perform a SDRAM Memtest from the start of SDRAM
  * till the beginning of the U-Boot position in RAM.
  */
-#define CONFIG_SYS_MEMTEST_START	CONFIG_SYS_SDRAM_BASE
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_TEXT_BASE - 0x100000)
 
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN \
@@ -144,10 +142,7 @@
 /*
  * The NAND Flash partitions:
  */
-#define CONFIG_ENV_OFFSET		(0x100000)
-#define CONFIG_ENV_OFFSET_REDUND	(0x180000)
 #define CONFIG_ENV_RANGE		(SZ_512K)
-#define CONFIG_ENV_SIZE			(SZ_128K)
 
 /*
  * Predefined environment variables.
@@ -174,7 +169,6 @@
 #endif
 
 /* Defines for SPL */
-#define CONFIG_SPL_TEXT_BASE		0x0
 #define CONFIG_SPL_MAX_SIZE		(SZ_4K)
 
 #define CONFIG_SPL_BSS_START_ADDR	CONFIG_SYS_SDRAM_BASE
@@ -216,11 +210,6 @@
 #define CONFIG_SYS_MCKR			0x100
 #define CONFIG_SYS_MCKR_CSS		(0x02 | CONFIG_SYS_MCKR)
 #define CONFIG_SYS_AT91_PLLB		0x10483f0e
-
-#if defined(CONFIG_SPL_BUILD)
-#define CONFIG_SYS_ICACHE_OFF
-#define CONFIG_SYS_DCACHE_OFF
-#endif
 
 #define CONFIG_SPL_PAD_TO		CONFIG_SYS_NAND_U_BOOT_OFFS
 #define CONFIG_SYS_SPL_LEN		CONFIG_SPL_PAD_TO

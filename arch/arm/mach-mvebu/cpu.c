@@ -5,6 +5,10 @@
 
 #include <common.h>
 #include <ahci.h>
+#include <cpu_func.h>
+#include <init.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/mbus.h>
 #include <asm/io.h>
 #include <asm/pl310.h>
@@ -520,7 +524,7 @@ int arch_misc_init(void)
 }
 #endif /* CONFIG_ARCH_MISC_INIT */
 
-#ifdef CONFIG_MMC_SDHCI_MV
+#if defined(CONFIG_MMC_SDHCI_MV) && !defined(CONFIG_DM_MMC)
 int board_mmc_init(bd_t *bis)
 {
 	mv_sdh_init(MVEBU_SDIO_BASE, 0, 0,
@@ -541,6 +545,10 @@ static void ahci_mvebu_mbus_config(void __iomem *base)
 {
 	const struct mbus_dram_target_info *dram;
 	int i;
+
+	/* mbus is not initialized in SPL; keep the ROM settings */
+	if (IS_ENABLED(CONFIG_SPL_BUILD))
+		return;
 
 	dram = mvebu_mbus_dram_info();
 

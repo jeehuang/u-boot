@@ -9,6 +9,8 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#include <linux/stringify.h>
+
 #ifndef CONFIG_SYS_MONITOR_BASE
 #define CONFIG_SYS_MONITOR_BASE	CONFIG_SYS_TEXT_BASE	/* start of monitor */
 #endif
@@ -24,7 +26,6 @@
 #define CONFIG_PCIE2		/* PCIE controller 2 (slot 2) */
 #define CONFIG_PCIE3		/* PCIE controller 3 (slot 3) */
 #define CONFIG_FSL_PCI_INIT	/* Use common FSL init code */
-#define CONFIG_FSL_PCIE_RESET	/* need PCIe reset errata */
 #define CONFIG_SYS_PCI_64BIT	/* enable 64-bit PCI resources */
 
 #ifndef __ASSEMBLY__
@@ -42,9 +43,6 @@ extern unsigned long get_clock_freq(void);
 #define CONFIG_HWCONFIG
 
 #define CONFIG_ENABLE_36BIT_PHYS
-
-#define CONFIG_SYS_MEMTEST_START	0x01000000	/* memtest works on */
-#define CONFIG_SYS_MEMTEST_END		0x02000000
 
 /* Implement conversion of addresses in the LBC */
 #define CONFIG_SYS_LBC_LBCR		0x00000000
@@ -215,10 +213,6 @@ extern unsigned long get_clock_freq(void);
  */
 #define CONFIG_ENV_OVERWRITE
 
-#define CONFIG_ENV_ADDR		(CONFIG_SYS_MONITOR_BASE - CONFIG_ENV_SECT_SIZE)
-#define CONFIG_ENV_SIZE		0x2000
-#define CONFIG_ENV_SECT_SIZE	0x20000 /* 128K (one sector) */
-
 #define CONFIG_LOADS_ECHO		/* echo on for serial download */
 #define CONFIG_SYS_LOADS_BAUD_CHANGE	/* allow baudrate change */
 
@@ -282,14 +276,8 @@ extern unsigned long get_clock_freq(void);
 /* For FM */
 #define CONFIG_SYS_DPAA_FMAN
 
-#ifdef CONFIG_SYS_DPAA_FMAN
-#define CONFIG_FMAN_ENET
-#define CONFIG_PHY_ATHEROS
-#endif
-
 /* Default address of microcode for the Linux Fman driver */
 /* QE microcode/firmware address */
-#define CONFIG_SYS_QE_FMAN_FW_IN_NOR
 #define CONFIG_SYS_FMAN_FW_ADDR	0xEFF00000
 #define CONFIG_SYS_QE_FMAN_FW_LENGTH	0x10000
 #define CONFIG_SYS_FDT_PAD		(0x3000 + CONFIG_SYS_QE_FMAN_FW_LENGTH)

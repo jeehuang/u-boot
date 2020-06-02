@@ -13,12 +13,20 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
 #include <dm.h>
+#include <log.h>
 #include <net.h>
 #include <netdev.h>
 #include <config.h>
 #include <malloc.h>
+#include <asm/cache.h>
 #include <asm/io.h>
+#include <dm/device_compat.h>
+#include <dm/devres.h>
+#include <linux/bitops.h>
+#include <linux/bug.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <phy.h>
 #include <miiphy.h>
@@ -275,7 +283,7 @@ struct mvneta_port {
 	int init;
 	int phyaddr;
 	struct phy_device *phydev;
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 	struct gpio_desc phy_reset_gpio;
 #endif
 	struct mii_dev *bus;
@@ -1753,7 +1761,7 @@ static int mvneta_probe(struct udevice *dev)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_DM_GPIO
+#if CONFIG_IS_ENABLED(DM_GPIO)
 	gpio_request_by_name(dev, "phy-reset-gpios", 0,
 			     &pp->phy_reset_gpio, GPIOD_IS_OUT);
 

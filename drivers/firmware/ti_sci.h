@@ -15,6 +15,7 @@
 #define __TI_SCI_H
 
 /* Generic Messages */
+#include <linux/bitops.h>
 #define TI_SCI_MSG_ENABLE_WDT		0x0000
 #define TI_SCI_MSG_WAKE_RESET		0x0001
 #define TI_SCI_MSG_VERSION		0x0002
@@ -50,6 +51,7 @@
 #define TISCI_MSG_SET_PROC_BOOT_CTRL	0xc101
 #define TISCI_MSG_PROC_AUTH_BOOT_IMIAGE	0xc120
 #define TISCI_MSG_GET_PROC_BOOT_STATUS	0xc400
+#define TISCI_MSG_WAIT_PROC_BOOT_STATUS	0xc401
 
 /* Resource Management Requests */
 #define TI_SCI_MSG_GET_RESOURCE_RANGE	0x1500
@@ -57,7 +59,6 @@
 /* NAVSS resource management */
 /* Ringacc requests */
 #define TI_SCI_MSG_RM_RING_CFG			0x1110
-#define TI_SCI_MSG_RM_RING_GET_CFG		0x1111
 
 /* PSI-L requests */
 #define TI_SCI_MSG_RM_PSIL_PAIR			0x1280
@@ -71,13 +72,13 @@
 #define TI_SCI_MSG_RM_UDMAP_OPT_FLOW_CFG	0x1221
 
 #define TISCI_MSG_RM_UDMAP_TX_CH_CFG		0x1205
-#define TISCI_MSG_RM_UDMAP_TX_CH_GET_CFG	0x1206
 #define TISCI_MSG_RM_UDMAP_RX_CH_CFG		0x1215
-#define TISCI_MSG_RM_UDMAP_RX_CH_GET_CFG	0x1216
 #define TISCI_MSG_RM_UDMAP_FLOW_CFG		0x1230
 #define TISCI_MSG_RM_UDMAP_FLOW_SIZE_THRESH_CFG	0x1231
-#define TISCI_MSG_RM_UDMAP_FLOW_GET_CFG		0x1232
-#define TISCI_MSG_RM_UDMAP_FLOW_SIZE_THRESH_GET_CFG	0x1233
+
+#define TISCI_MSG_FWL_SET		0x9000
+#define TISCI_MSG_FWL_GET		0x9001
+#define TISCI_MSG_FWL_CHANGE_OWNER	0x9002
 
 /**
  * struct ti_sci_msg_hdr - Generic Message Header for All messages and responses
@@ -704,7 +705,6 @@ struct ti_sci_msg_req_set_proc_boot_ctrl {
 /**
  * struct ti_sci_msg_req_proc_auth_start_image - Authenticate and start image
  * @hdr:		Generic Header
- * @processor_id:	ID of processor
  * @cert_addr_low:	Lower 32bit (Little Endian) of certificate
  * @cert_addr_high:	Higher 32bit (Little Endian) of certificate
  *
@@ -713,9 +713,15 @@ struct ti_sci_msg_req_set_proc_boot_ctrl {
  */
 struct ti_sci_msg_req_proc_auth_boot_image {
 	struct ti_sci_msg_hdr hdr;
-	u8 processor_id;
 	u32 cert_addr_low;
 	u32 cert_addr_high;
+} __packed;
+
+struct ti_sci_msg_resp_proc_auth_boot_image {
+	struct ti_sci_msg_hdr hdr;
+	u32 image_addr_low;
+	u32 image_addr_high;
+	u32 image_size;
 } __packed;
 
 /**
@@ -761,6 +767,55 @@ struct ti_sci_msg_resp_get_proc_boot_status {
 	u32 config_flags;
 	u32 control_flags;
 	u32 status_flags;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_wait_proc_boot_status - Wait for a processor
+ *						 boot status
+ * @hdr:			Generic Header
+ * @processor_id:		ID of processor
+ * @num_wait_iterations:	Total number of iterations we will check before
+ *				we will timeout and give up
+ * @num_match_iterations:	How many iterations should we have continued
+ *				status to account for status bits glitching.
+ *				This is to make sure that match occurs for
+ *				consecutive checks. This implies that the
+ *				worst case should consider that the stable
+ *				time should at the worst be num_wait_iterations
+ *				num_match_iterations to prevent timeout.
+ * @delay_per_iteration_us:	Specifies how long to wait (in micro seconds)
+ *				between each status checks. This is the minimum
+ *				duration, and overhead of register reads and
+ *				checks are on top of this and can vary based on
+ *				varied conditions.
+ * @delay_before_iterations_us:	Specifies how long to wait (in micro seconds)
+ *				before the very first check in the first
+ *				iteration of status check loop. This is the
+ *				minimum duration, and overhead of register
+ *				reads and checks are.
+ * @status_flags_1_set_all_wait:If non-zero, Specifies that all bits of the
+ *				status matching this field requested MUST be 1.
+ * @status_flags_1_set_any_wait:If non-zero, Specifies that at least one of the
+ *				bits matching this field requested MUST be 1.
+ * @status_flags_1_clr_all_wait:If non-zero, Specifies that all bits of the
+ *				status matching this field requested MUST be 0.
+ * @status_flags_1_clr_any_wait:If non-zero, Specifies that at least one of the
+ *				bits matching this field requested MUST be 0.
+ *
+ * Request type is TISCI_MSG_WAIT_PROC_BOOT_STATUS, response is appropriate
+ * message, or NACK in case of inability to satisfy request.
+ */
+struct ti_sci_msg_req_wait_proc_boot_status {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u8 num_wait_iterations;
+	u8 num_match_iterations;
+	u8 delay_per_iteration_us;
+	u8 delay_before_iterations_us;
+	u32 status_flags_1_set_all_wait;
+	u32 status_flags_1_set_any_wait;
+	u32 status_flags_1_clr_all_wait;
+	u32 status_flags_1_clr_any_wait;
 } __packed;
 
 /**
@@ -1336,6 +1391,123 @@ struct ti_sci_msg_rm_udmap_flow_cfg_req {
  */
 struct ti_sci_msg_rm_udmap_flow_cfg_resp {
 	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+#define FWL_MAX_PRIVID_SLOTS 3U
+
+/**
+ * struct ti_sci_msg_fwl_set_firewall_region_req - Request for configuring the firewall permissions.
+ *
+ * @hdr:		Generic Header
+ *
+ * @fwl_id:		Firewall ID in question
+ * @region:		Region or channel number to set config info
+ *			This field is unused in case of a simple firewall  and must be initialized
+ *			to zero.  In case of a region based firewall, this field indicates the
+ *			region in question. (index starting from 0) In case of a channel based
+ *			firewall, this field indicates the channel in question (index starting
+ *			from 0)
+ * @n_permission_regs:	Number of permission registers to set
+ * @control:		Contents of the firewall CONTROL register to set
+ * @permissions:	Contents of the firewall PERMISSION register to set
+ * @start_address:	Contents of the firewall START_ADDRESS register to set
+ * @end_address:	Contents of the firewall END_ADDRESS register to set
+ */
+
+struct ti_sci_msg_fwl_set_firewall_region_req {
+	struct ti_sci_msg_hdr	hdr;
+	u16			fwl_id;
+	u16			region;
+	u32			n_permission_regs;
+	u32			control;
+	u32			permissions[FWL_MAX_PRIVID_SLOTS];
+	u64			start_address;
+	u64			end_address;
+} __packed;
+
+/**
+ * struct ti_sci_msg_fwl_get_firewall_region_req - Request for retrieving the firewall permissions
+ *
+ * @hdr:		Generic Header
+ *
+ * @fwl_id:		Firewall ID in question
+ * @region:		Region or channel number to get config info
+ *			This field is unused in case of a simple firewall and must be initialized
+ *			to zero.  In case of a region based firewall, this field indicates the
+ *			region in question (index starting from 0). In case of a channel based
+ *			firewall, this field indicates the channel in question (index starting
+ *			from 0).
+ * @n_permission_regs:	Number of permission registers to retrieve
+ */
+struct ti_sci_msg_fwl_get_firewall_region_req {
+	struct ti_sci_msg_hdr	hdr;
+	u16			fwl_id;
+	u16			region;
+	u32			n_permission_regs;
+} __packed;
+
+/**
+ * struct ti_sci_msg_fwl_get_firewall_region_resp - Response for retrieving the firewall permissions
+ *
+ * @hdr:		Generic Header
+ *
+ * @fwl_id:		Firewall ID in question
+ * @region:		Region or channel number to set config info This field is
+ *			unused in case of a simple firewall  and must be initialized to zero.  In
+ *			case of a region based firewall, this field indicates the region in
+ *			question. (index starting from 0) In case of a channel based firewall, this
+ *			field indicates the channel in question (index starting from 0)
+ * @n_permission_regs:	Number of permission registers retrieved
+ * @control:		Contents of the firewall CONTROL register
+ * @permissions:	Contents of the firewall PERMISSION registers
+ * @start_address:	Contents of the firewall START_ADDRESS register This is not applicable for channelized firewalls.
+ * @end_address:	Contents of the firewall END_ADDRESS register This is not applicable for channelized firewalls.
+ */
+struct ti_sci_msg_fwl_get_firewall_region_resp {
+	struct ti_sci_msg_hdr	hdr;
+	u16			fwl_id;
+	u16			region;
+	u32			n_permission_regs;
+	u32			control;
+	u32			permissions[FWL_MAX_PRIVID_SLOTS];
+	u64			start_address;
+	u64			end_address;
+} __packed;
+
+/**
+ * struct ti_sci_msg_fwl_change_owner_info_req - Request for a firewall owner change
+ *
+ * @hdr:		Generic Header
+ *
+ * @fwl_id:		Firewall ID in question
+ * @region:		Region or channel number if applicable
+ * @owner_index:	New owner index to transfer ownership to
+ */
+struct ti_sci_msg_fwl_change_owner_info_req {
+	struct ti_sci_msg_hdr	hdr;
+	u16			fwl_id;
+	u16			region;
+	u8			owner_index;
+} __packed;
+
+/**
+ * struct ti_sci_msg_fwl_change_owner_info_resp - Response for a firewall owner change
+ *
+ * @hdr:		Generic Header
+ *
+ * @fwl_id:		Firewall ID specified in request
+ * @region:		Region or channel number specified in request
+ * @owner_index:	Owner index specified in request
+ * @owner_privid:	New owner priv-ID returned by DMSC.
+ * @owner_permission_bits:	New owner permission bits returned by DMSC.
+ */
+struct ti_sci_msg_fwl_change_owner_info_resp {
+	struct ti_sci_msg_hdr	hdr;
+	u16			fwl_id;
+	u16			region;
+	u8			owner_index;
+	u8			owner_privid;
+	u16			owner_permission_bits;
 } __packed;
 
 #endif /* __TI_SCI_H */

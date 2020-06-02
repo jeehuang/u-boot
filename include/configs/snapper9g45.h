@@ -31,8 +31,6 @@
 					 GENERATED_GBL_DATA_SIZE)
 
 /* Mem test settings */
-#define CONFIG_SYS_MEMTEST_START	CONFIG_SYS_SDRAM_BASE
-#define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_SDRAM_BASE + (1024 * 1024))
 
 /* NAND Flash */
 #define CONFIG_SYS_NAND_ECC_BASE	ATMEL_BASE_ECC
@@ -74,8 +72,6 @@
 #define CONFIG_BOOTP_BOOTFILESIZE
 
 /* Environment settings */
-#define CONFIG_ENV_OFFSET		(512 << 10)
-#define CONFIG_ENV_SIZE			(256 << 10)
 #define CONFIG_ENV_OVERWRITE
 
 #define	CONFIG_EXTRA_ENV_SETTINGS	\
@@ -105,7 +101,6 @@
 
 /* Command line configuration */
 #define CONFIG_CMD_MII
-#define CONFIG_CMD_MMC
 #define CONFIG_CMD_CACHE
 
 #endif /* __CONFIG_H */

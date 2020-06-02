@@ -9,15 +9,16 @@
 from collections import OrderedDict
 import os
 
-from entry import Entry, EntryArg
+from binman.entry import Entry, EntryArg
 
-import fdt_util
-import tools
+from dtoc import fdt_util
+from patman import tools
 
 class Entry_vblock(Entry):
     """An entry which contains a Chromium OS verified boot block
 
     Properties / Entry arguments:
+        - content: List of phandles to entries to sign
         - keydir: Directory containing the public keys to use
         - keyblock: Name of the key file to use (inside keydir)
         - signprivate: Name of provide key file to use (inside keydir)
@@ -50,7 +51,7 @@ class Entry_vblock(Entry):
 
     def ObtainContents(self):
         # Join up the data files to be signed
-        input_data = ''
+        input_data = b''
         for entry_phandle in self.content:
             data = self.section.GetContentsByPhandle(entry_phandle, self)
             if data is None:

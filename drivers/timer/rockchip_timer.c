@@ -4,10 +4,13 @@
  */
 
 #include <common.h>
+#include <bootstage.h>
 #include <dm.h>
+#include <init.h>
+#include <log.h>
 #include <dm/ofnode.h>
 #include <mapmem.h>
-#include <asm/arch/timer.h>
+#include <asm/arch-rockchip/timer.h>
 #include <dt-structs.h>
 #include <timer.h>
 #include <asm/io.h>

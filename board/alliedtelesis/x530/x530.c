@@ -6,9 +6,12 @@
 #include <common.h>
 #include <command.h>
 #include <dm.h>
+#include <env.h>
 #include <i2c.h>
+#include <init.h>
 #include <wdt.h>
 #include <asm/gpio.h>
+#include <linux/bitops.h>
 #include <linux/mbus.h>
 #include <linux/io.h>
 #include <asm/arch/cpu.h>
@@ -24,10 +27,6 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define CONFIG_NVS_LOCATION		0xf4800000
 #define CONFIG_NVS_SIZE			(512 << 10)
-
-#ifdef CONFIG_WATCHDOG
-static struct udevice *watchdog_dev;
-#endif
 
 static struct serdes_map board_serdes_map[] = {
 	{PEX0, SERDES_SPEED_5_GBPS, PEX_ROOT_COMPLEX_X1, 0, 0},
@@ -69,7 +68,11 @@ static struct mv_ddr_topology_map board_topology_map = {
 	BUS_MASK_32BIT_ECC,		/* subphys mask */
 	MV_DDR_CFG_DEFAULT,		/* ddr configuration data source */
 	{ {0} },			/* raw spd data */
-	{0}				/* timing parameters */
+	{0},				/* timing parameters */
+	{ {0} },			/* electrical configuration */
+	{0},				/* electrical parameters */
+	0,				/* Clock enable mask */
+	160				/* Clock delay */
 };
 
 struct mv_ddr_topology_map *mv_ddr_topology_map_get(void)
@@ -80,10 +83,6 @@ struct mv_ddr_topology_map *mv_ddr_topology_map_get(void)
 
 int board_early_init_f(void)
 {
-#ifdef CONFIG_WATCHDOG
-	watchdog_dev = NULL;
-#endif
-
 	/* Configure MPP */
 	writel(0x00001111, MVEBU_MPP_BASE + 0x00);
 	writel(0x00000000, MVEBU_MPP_BASE + 0x04);
@@ -99,13 +98,6 @@ int board_early_init_f(void)
 
 void spl_board_init(void)
 {
-#ifdef CONFIG_WATCHDOG
-	int ret;
-
-	ret = uclass_get_device(UCLASS_WDT, 0, &watchdog_dev);
-	if (!ret)
-		wdt_start(watchdog_dev, 120000, 0);
-#endif
 }
 
 int board_init(void)
@@ -128,28 +120,9 @@ int board_init(void)
 void arch_preboot_os(void)
 {
 #ifdef CONFIG_WATCHDOG
-	wdt_stop(watchdog_dev);
+	wdt_stop(gd->watchdog_dev);
 #endif
 }
-
-#ifdef CONFIG_WATCHDOG
-void watchdog_reset(void)
-{
-	static ulong next_reset = 0;
-	ulong now;
-
-	if (!watchdog_dev)
-		return;
-
-	now = timer_get_us();
-
-	/* Do not reset the watchdog too often */
-	if (now > next_reset) {
-		wdt_reset(watchdog_dev);
-		next_reset = now + 1000;
-	}
-}
-#endif
 
 static int led_7seg_init(unsigned int segments)
 {

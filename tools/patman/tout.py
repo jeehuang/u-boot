@@ -6,14 +6,10 @@
 
 import sys
 
-import terminal
+from patman import terminal
 
 # Output verbosity levels that we support
-ERROR = 0
-WARNING = 1
-NOTICE = 2
-INFO = 3
-DEBUG = 4
+ERROR, WARNING, NOTICE, INFO, DETAIL, DEBUG = range(6)
 
 in_progress = False
 
@@ -87,7 +83,7 @@ def _Output(level, msg, color=None):
         ClearProgress()
         if color:
             msg = _color.Color(color, msg)
-        _stdout.write(msg + '\n')
+        print(msg)
 
 def DoOutput(level, msg):
     """Output a message to the terminal.
@@ -105,7 +101,7 @@ def Error(msg):
     Args:
         msg; Message to display.
     """
-    _Output(0, msg, _color.RED)
+    _Output(ERROR, msg, _color.RED)
 
 def Warning(msg):
     """Display a warning message
@@ -113,7 +109,7 @@ def Warning(msg):
     Args:
         msg; Message to display.
     """
-    _Output(1, msg, _color.YELLOW)
+    _Output(WARNING, msg, _color.YELLOW)
 
 def Notice(msg):
     """Display an important infomation message
@@ -121,7 +117,7 @@ def Notice(msg):
     Args:
         msg; Message to display.
     """
-    _Output(2, msg)
+    _Output(NOTICE, msg)
 
 def Info(msg):
     """Display an infomation message
@@ -129,7 +125,15 @@ def Info(msg):
     Args:
         msg; Message to display.
     """
-    _Output(3, msg)
+    _Output(INFO, msg)
+
+def Detail(msg):
+    """Display a detailed message
+
+    Args:
+        msg; Message to display.
+    """
+    _Output(DETAIL, msg)
 
 def Debug(msg):
     """Display a debug message
@@ -137,7 +141,7 @@ def Debug(msg):
     Args:
         msg; Message to display.
     """
-    _Output(4, msg)
+    _Output(DEBUG, msg)
 
 def UserOutput(msg):
     """Display a message regardless of the current output level.

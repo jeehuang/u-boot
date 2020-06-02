@@ -23,8 +23,6 @@
 
 #define CONFIG_REVISION_TAG		1
 
-#define CONFIG_ENV_SIZE			(128 << 10)	/* 128 KiB */
-
 /*
  * Hardware drivers
  */
@@ -112,9 +110,6 @@
 /*
  * Miscellaneous configurable options
  */
-#define CONFIG_SYS_MEMTEST_START	(PHYS_SDRAM_1)	/* memtest */
-#define CONFIG_SYS_MEMTEST_END		(PHYS_SDRAM_2 + \
-					0x01F00000) /* 31MB */
 
 /*-----------------------------------------------------------------------
  * FLASH and environment organization
@@ -132,7 +127,5 @@
 #define ONENAND_ENV_OFFSET		0x260000 /* environment starts here */
 
 #define CONFIG_SYS_ENV_SECT_SIZE	(128 << 10)	/* 128 KiB */
-#define CONFIG_ENV_OFFSET		0x260000
-#define CONFIG_ENV_ADDR			0x260000
 
 #endif				/* __CONFIG_H */

@@ -8,6 +8,8 @@
  */
 
 #include <common.h>
+#include <command.h>
+#include <log.h>
 #include <linux/ctype.h>
 #include <dm.h>
 #include <video.h>
@@ -139,23 +141,31 @@ u32 vid_console_color(struct video_priv *priv, unsigned int idx)
 {
 	switch (priv->bpix) {
 	case VIDEO_BPP16:
-		return ((colors[idx].r >> 3) << 11) |
-		       ((colors[idx].g >> 2) <<  5) |
-		       ((colors[idx].b >> 3) <<  0);
+		if (CONFIG_IS_ENABLED(VIDEO_BPP16)) {
+			return ((colors[idx].r >> 3) << 11) |
+			       ((colors[idx].g >> 2) <<  5) |
+			       ((colors[idx].b >> 3) <<  0);
+		}
+		break;
 	case VIDEO_BPP32:
-		return (colors[idx].r << 16) |
-		       (colors[idx].g <<  8) |
-		       (colors[idx].b <<  0);
+		if (CONFIG_IS_ENABLED(VIDEO_BPP32)) {
+			return (colors[idx].r << 16) |
+			       (colors[idx].g <<  8) |
+			       (colors[idx].b <<  0);
+		}
+		break;
 	default:
-		/*
-		 * For unknown bit arrangements just support
-		 * black and white.
-		 */
-		if (idx)
-			return 0xffffff; /* white */
-		else
-			return 0x000000; /* black */
+		break;
 	}
+
+	/*
+	 * For unknown bit arrangements just support
+	 * black and white.
+	 */
+	if (idx)
+		return 0xffffff; /* white */
+
+	return 0x000000; /* black */
 }
 
 static char *parsenum(char *s, int *num)
@@ -529,6 +539,20 @@ int vidconsole_put_char(struct udevice *dev, char ch)
 	return 0;
 }
 
+int vidconsole_put_string(struct udevice *dev, const char *str)
+{
+	const char *s;
+	int ret;
+
+	for (s = str; *s; s++) {
+		ret = vidconsole_put_char(dev, *s);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static void vidconsole_putc(struct stdio_dev *sdev, const char ch)
 {
 	struct udevice *dev = sdev->priv;
@@ -541,8 +565,7 @@ static void vidconsole_puts(struct stdio_dev *sdev, const char *s)
 {
 	struct udevice *dev = sdev->priv;
 
-	while (*s)
-		vidconsole_put_char(dev, *s++);
+	vidconsole_put_string(dev, s);
 	video_sync(dev->parent, false);
 }
 
@@ -602,7 +625,7 @@ void vidconsole_position_cursor(struct udevice *dev, unsigned col, unsigned row)
 	priv->ycur = min_t(short, row, vid_priv->ysize - 1);
 }
 
-static int do_video_setcursor(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_video_setcursor(struct cmd_tbl *cmdtp, int flag, int argc,
 			      char *const argv[])
 {
 	unsigned int col, row;
@@ -620,7 +643,7 @@ static int do_video_setcursor(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static int do_video_puts(cmd_tbl_t *cmdtp, int flag, int argc,
+static int do_video_puts(struct cmd_tbl *cmdtp, int flag, int argc,
 			 char *const argv[])
 {
 	struct udevice *dev;

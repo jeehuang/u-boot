@@ -13,6 +13,7 @@
 #include <regmap.h>
 #include <sysreset.h>
 #include <syscon.h>
+#include <linux/err.h>
 
 struct syscon_reboot_priv {
 	struct regmap *regmap;
@@ -23,6 +24,10 @@ struct syscon_reboot_priv {
 static int syscon_reboot_request(struct udevice *dev, enum sysreset_t type)
 {
 	struct syscon_reboot_priv *priv = dev_get_priv(dev);
+	ulong driver_data = dev_get_driver_data(dev);
+
+	if (type != driver_data)
+		return -EPROTONOSUPPORT;
 
 	regmap_write(priv->regmap, priv->offset, priv->mask);
 
@@ -50,7 +55,8 @@ int syscon_reboot_probe(struct udevice *dev)
 }
 
 static const struct udevice_id syscon_reboot_ids[] = {
-	{ .compatible = "syscon-reboot" },
+	{ .compatible = "syscon-reboot", .data = SYSRESET_COLD },
+	{ .compatible = "syscon-poweroff", .data = SYSRESET_POWER_OFF },
 	{ /* sentinel */ }
 };
 

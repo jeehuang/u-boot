@@ -6,14 +6,21 @@
  */
 
 #include <common.h>
+#include <cpu_func.h>
+#include <log.h>
+#include <asm/cache.h>
 #include <asm/io.h>
 #include <malloc.h>
-#include <asm/dma-mapping.h>
 #include <asm/bitops.h>
 #include <dm.h>
+#include <dm/device_compat.h>
+#include <dm/devres.h>
 #include <dm/read.h>
 #include <dm/uclass.h>
+#include <linux/bitops.h>
 #include <linux/compat.h>
+#include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/soc/ti/k3-navss-ringacc.h>
 #include <linux/soc/ti/ti_sci_protocol.h>
 
@@ -366,8 +373,10 @@ void k3_nav_ringacc_ring_reset_dma(struct k3_nav_ring *ring, u32 occ)
 	if (!ring || !(ring->flags & KNAV_RING_FLAG_BUSY))
 		return;
 
-	if (!ring->parent->dma_ring_reset_quirk)
+	if (!ring->parent->dma_ring_reset_quirk) {
+		k3_nav_ringacc_ring_reset(ring);
 		return;
+	}
 
 	if (!occ)
 		occ = ringacc_readl(&ring->rt->occ);
@@ -805,6 +814,11 @@ static int k3_nav_ringacc_ring_push_mem(struct k3_nav_ring *ring, void *elem)
 
 	memcpy(elem_ptr, elem, (4 << ring->elm_size));
 
+	flush_dcache_range((unsigned long)ring->ring_mem_virt,
+			   ALIGN((unsigned long)ring->ring_mem_virt +
+				 ring->size * (4 << ring->elm_size),
+				 ARCH_DMA_MINALIGN));
+
 	ring->windex = (ring->windex + 1) % ring->size;
 	ring->free--;
 	ringacc_writel(1, &ring->rt->db);
@@ -820,6 +834,11 @@ static int k3_nav_ringacc_ring_pop_mem(struct k3_nav_ring *ring, void *elem)
 	void *elem_ptr;
 
 	elem_ptr = k3_nav_ringacc_get_elm_addr(ring, ring->rindex);
+
+	invalidate_dcache_range((unsigned long)ring->ring_mem_virt,
+				ALIGN((unsigned long)ring->ring_mem_virt +
+				      ring->size * (4 << ring->elm_size),
+				      ARCH_DMA_MINALIGN));
 
 	memcpy(elem, elem_ptr, (4 << ring->elm_size));
 
@@ -929,7 +948,8 @@ static int k3_nav_ringacc_probe_dt(struct k3_nav_ringacc *ringacc)
 	ringacc->dma_ring_reset_quirk =
 			dev_read_bool(dev, "ti,dma-ring-reset-quirk");
 
-	ret = uclass_get_device_by_name(UCLASS_FIRMWARE, "dmsc", &tisci_dev);
+	ret = uclass_get_device_by_phandle(UCLASS_FIRMWARE, dev,
+					   "ti,sci", &tisci_dev);
 	if (ret) {
 		pr_debug("TISCI RA RM get failed (%d)\n", ret);
 		ringacc->tisci = NULL;

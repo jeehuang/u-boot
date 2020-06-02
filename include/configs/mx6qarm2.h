@@ -102,8 +102,6 @@
 #define CONFIG_ARP_TIMEOUT	200UL
 
 /* Miscellaneous configurable options */
-#define CONFIG_SYS_MEMTEST_START	0x10000000
-#define CONFIG_SYS_MEMTEST_END		0x10010000
 
 /* Physical Memory Map */
 #define PHYS_SDRAM			MMDC0_ARB_BASE_ADDR
@@ -118,8 +116,6 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* Environment organization */
-#define CONFIG_ENV_OFFSET		(6 * 64 * 1024)
-#define CONFIG_ENV_SIZE			(8 * 1024)
 #define CONFIG_SYS_MMC_ENV_DEV		1
 
 /* USB Configs */
