@@ -7,6 +7,7 @@
 #include <log.h>
 #include <asm/arch/sci/sci.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/global_data.h>
 #include <dm/ofnode.h>
 #include <fdt_support.h>
 #include <linux/libfdt.h>
@@ -228,7 +229,7 @@ static int config_smmu_fdt(void *blob)
 	return 0;
 }
 
-static int ft_add_optee_node(void *fdt, bd_t *bd)
+static int ft_add_optee_node(void *fdt, struct bd_info *bd)
 {
 	const char *path, *subpath;
 	int offs;
@@ -278,7 +279,7 @@ static int ft_add_optee_node(void *fdt, bd_t *bd)
 	return 0;
 }
 
-int ft_system_setup(void *blob, bd_t *bd)
+int ft_system_setup(void *blob, struct bd_info *bd)
 {
 	int ret;
 	int off;

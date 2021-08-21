@@ -10,6 +10,7 @@
 #include <image.h>
 #include <init.h>
 #include <log.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <errno.h>
 #include <asm/io.h>
@@ -35,7 +36,7 @@ extern struct dram_timing_info dram_timing_b0;
 static void spl_dram_init(void)
 {
 	/* ddr init */
-	if ((get_cpu_rev() & 0xfff) == CHIP_REV_2_1)
+	if (soc_rev() >= CHIP_REV_2_1)
 		ddr_init(&dram_timing);
 	else
 		ddr_init(&dram_timing_b0);
@@ -111,7 +112,7 @@ static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 	{USDHC2_BASE_ADDR, 0, 4},
 };
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i, ret;
 	/*

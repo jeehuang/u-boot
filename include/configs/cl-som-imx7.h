@@ -15,8 +15,6 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(32 * SZ_1M)
 
-#define CONFIG_BOARD_LATE_INIT
-
 /* Network */
 #define CONFIG_FEC_MXC
 #define CONFIG_FEC_XCV_TYPE             RGMII
@@ -33,7 +31,7 @@
 #define CONFIG_POWER_PFUZE3000_I2C_ADDR	0x08
 
 /* I2C configs */
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_MXC_I2C2		/* Enable I2C bus 2 */
 #define CONFIG_SYS_I2C_SPEED		100000
@@ -44,7 +42,6 @@
 #define CONFIG_SYS_I2C_EEPROM_BUS	SYS_I2C_BUS_SOM
 
 #define CONFIG_PCA953X
-#define CONFIG_CMD_PCA953X
 #define CONFIG_SYS_I2C_PCA953X_ADDR	0x20
 #define CONFIG_SYS_I2C_PCA953X_WIDTH	{ {0x20, 16} }
 
@@ -143,9 +140,6 @@
 #define CONFIG_MXC_USB_PORTSC  (PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_MXC_USB_FLAGS   0
 #define CONFIG_USB_MAX_CONTROLLER_COUNT 2
-
-/* Uncomment to enable iMX thermal driver support */
-/*#define CONFIG_IMX_THERMAL*/
 
 /* SPL */
 #include "imx7_spl.h"

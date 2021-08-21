@@ -20,7 +20,6 @@
 #define CONFIG_SYS_MONITOR_LEN		(1024 * 1024)
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 #define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR		0x800
-#define CONFIG_SYS_MMCSD_FS_BOOT_PARTITION		0
 
 #define CONFIG_SPL_LDSCRIPT		"arch/arm/cpu/armv8/u-boot-spl.lds"
 #define CONFIG_SPL_STACK		0x013E000
@@ -42,20 +41,8 @@
 
 #define CONFIG_REMAKE_ELF
 
-#define CONFIG_BOARD_EARLY_INIT_F
-
-/* Commands */
-#define CONFIG_CMD_READ
-
-#undef CONFIG_CMD_EXPORTENV
-#undef CONFIG_CMD_IMPORTENV
-#undef CONFIG_CMD_IMLS
-#undef CONFIG_CMD_CRC32
-#undef CONFIG_BOOTM_NETBSD
-
 /* ENET Config */
 #define CONFIG_FEC_XCV_TYPE		RMII
-#define FEC_QUIRK_ENET_MAC
 
 /* ENET1 connects to base board and MUX with ESAI */
 #define CONFIG_FEC_ENET_DEV		1
@@ -144,14 +131,6 @@
 #define CONFIG_LOADADDR			0x80280000
 #define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 #define CONFIG_SYS_INIT_SP_ADDR		0x80200000
-
-#define CONFIG_BOOTCOUNT_LIMIT
-#define CONFIG_BOOTCOUNT_ENV
-
-/* Environment organisation */
-#define CONFIG_ENV_OVERWRITE
-#define CONFIG_SYS_MMC_ENV_DEV		0	/* USDHC1, eMMC */
-#define CONFIG_SYS_MMC_ENV_PART		2	/* 2nd boot partition */
 
 /* On CCP board, USDHC1 is for eMMC */
 #define CONFIG_MMCROOT			"/dev/mmcblk0p2"  /* eMMC */

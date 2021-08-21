@@ -11,6 +11,8 @@
 #ifndef _BOOTSTAGE_H
 #define _BOOTSTAGE_H
 
+#include <linux/kconfig.h>
+
 /* Flags for each bootstage record */
 enum bootstage_flags {
 	BOOTSTAGEF_ERROR	= 1 << 0,	/* Error record */
@@ -218,7 +220,7 @@ enum bootstage_id {
  */
 ulong timer_get_boot_us(void);
 
-#if defined(USE_HOSTCC)
+#if defined(USE_HOSTCC) || !CONFIG_IS_ENABLED(BOOTSTAGE)
 #define show_boot_progress(val) do {} while (0)
 #else
 /**
@@ -338,7 +340,7 @@ int bootstage_stash(void *base, int size);
  * @param base	Base address of memory buffer
  * @param size	Size of memory buffer (-1 if unknown)
  * @return 0 if unstashed ok, -ENOENT if bootstage info not found, -ENOSPC if
- *	there is not space for read the stacked data, or other error if
+ *	there is not space for read the stashed data, or other error if
  *	something else went wrong
  */
 int bootstage_unstash(const void *base, int size);

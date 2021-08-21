@@ -171,11 +171,11 @@ static const struct udevice_id rk3368_pinctrl_ids[] = {
 	{ }
 };
 
-U_BOOT_DRIVER(pinctrl_rk3368) = {
+U_BOOT_DRIVER(rockchip_rk3368_pinctrl) = {
 	.name		= "rockchip_rk3368_pinctrl",
 	.id		= UCLASS_PINCTRL,
 	.of_match	= rk3368_pinctrl_ids,
-	.priv_auto_alloc_size = sizeof(struct rockchip_pinctrl_priv),
+	.priv_auto	= sizeof(struct rockchip_pinctrl_priv),
 	.ops		= &rockchip_pinctrl_ops,
 #if !CONFIG_IS_ENABLED(OF_PLATDATA)
 	.bind		= dm_scan_fdt_dev,

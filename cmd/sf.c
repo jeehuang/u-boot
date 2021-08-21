@@ -54,7 +54,7 @@ static int sf_parse_len_arg(char *arg, ulong *len)
 		++arg;
 	}
 
-	len_arg = simple_strtoul(arg, &ep, 16);
+	len_arg = hextoul(arg, &ep);
 	if (ep == arg || *ep != '\0')
 		return -1;
 
@@ -91,7 +91,7 @@ static int do_spi_flash_probe(int argc, char *const argv[])
 	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
 	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
 	char *endp;
-#ifdef CONFIG_DM_SPI_FLASH
+#if CONFIG_IS_ENABLED(DM_SPI_FLASH)
 	struct udevice *new, *bus_dev;
 	int ret;
 #else
@@ -119,12 +119,12 @@ static int do_spi_flash_probe(int argc, char *const argv[])
 			return -1;
 	}
 	if (argc >= 4) {
-		mode = simple_strtoul(argv[3], &endp, 16);
+		mode = hextoul(argv[3], &endp);
 		if (*argv[3] == 0 || *endp != 0)
 			return -1;
 	}
 
-#ifdef CONFIG_DM_SPI_FLASH
+#if CONFIG_IS_ENABLED(DM_SPI_FLASH)
 	/* Remove the old device, otherwise probe will just be a nop */
 	ret = spi_find_bus_and_cs(bus, cs, &bus_dev, &new);
 	if (!ret) {
@@ -145,13 +145,10 @@ static int do_spi_flash_probe(int argc, char *const argv[])
 
 	new = spi_flash_probe(bus, cs, speed, mode);
 	flash = new;
-
 	if (!new) {
 		printf("Failed to initialize SPI flash at %u:%u\n", bus, cs);
 		return 1;
 	}
-
-	flash = new;
 #endif
 
 	return 0;
@@ -275,7 +272,7 @@ static int do_spi_flash_read_write(int argc, char *const argv[])
 	if (argc < 3)
 		return -1;
 
-	addr = simple_strtoul(argv[1], &endp, 16);
+	addr = hextoul(argv[1], &endp);
 	if (*argv[1] == 0 || *endp != 0)
 		return -1;
 
@@ -347,8 +344,11 @@ static int do_spi_flash_erase(int argc, char *const argv[])
 	}
 
 	ret = spi_flash_erase(flash, offset, size);
-	printf("SF: %zu bytes @ %#x Erased: %s\n", (size_t)size, (u32)offset,
-	       ret ? "ERROR" : "OK");
+	printf("SF: %zu bytes @ %#x Erased: ", (size_t)size, (u32)offset);
+	if (ret)
+		printf("ERROR %d\n", ret);
+	else
+		printf("OK\n");
 
 	return ret == 0 ? 0 : 1;
 }
@@ -445,20 +445,22 @@ static int spi_flash_test(struct spi_flash *flash, uint8_t *buf, ulong len,
 			   ulong offset, uint8_t *vbuf)
 {
 	struct test_info test;
-	int i;
+	int err, i;
 
 	printf("SPI flash test:\n");
 	memset(&test, '\0', sizeof(test));
 	test.base_ms = get_timer(0);
 	test.bytes = len;
-	if (spi_flash_erase(flash, offset, len)) {
-		printf("Erase failed\n");
+	err = spi_flash_erase(flash, offset, len);
+	if (err) {
+		printf("Erase failed (err = %d)\n", err);
 		return -1;
 	}
 	spi_test_next_stage(&test);
 
-	if (spi_flash_read(flash, offset, len, vbuf)) {
-		printf("Check read failed\n");
+	err = spi_flash_read(flash, offset, len, vbuf);
+	if (err) {
+		printf("Check read failed (err = %d)\n", err);
 		return -1;
 	}
 	for (i = 0; i < len; i++) {
@@ -471,15 +473,17 @@ static int spi_flash_test(struct spi_flash *flash, uint8_t *buf, ulong len,
 	}
 	spi_test_next_stage(&test);
 
-	if (spi_flash_write(flash, offset, len, buf)) {
-		printf("Write failed\n");
+	err = spi_flash_write(flash, offset, len, buf);
+	if (err) {
+		printf("Write failed (err = %d)\n", err);
 		return -1;
 	}
 	memset(vbuf, '\0', len);
 	spi_test_next_stage(&test);
 
-	if (spi_flash_read(flash, offset, len, vbuf)) {
-		printf("Read failed\n");
+	err = spi_flash_read(flash, offset, len, vbuf);
+	if (err) {
+		printf("Read failed (ret = %d)\n", err);
 		return -1;
 	}
 	spi_test_next_stage(&test);
@@ -513,10 +517,10 @@ static int do_spi_flash_test(int argc, char *const argv[])
 
 	if (argc < 3)
 		return -1;
-	offset = simple_strtoul(argv[1], &endp, 16);
+	offset = hextoul(argv[1], &endp);
 	if (*argv[1] == 0 || *endp != 0)
 		return -1;
-	len = simple_strtoul(argv[2], &endp, 16);
+	len = hextoul(argv[2], &endp);
 	if (*argv[2] == 0 || *endp != 0)
 		return -1;
 

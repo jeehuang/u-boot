@@ -49,7 +49,6 @@
 #define CONFIG_RESET_PHY_R
 #define CONFIG_AT91_WANTS_COMMON_PHY
 #define CONFIG_TFTP_PORT
-#define CONFIG_TFTP_TSIZE
 
 /* USB */
 #define CONFIG_USB_ATMEL
@@ -62,21 +61,19 @@
 
 /* GPIOs and IO expander */
 #define CONFIG_ATMEL_LEGACY
-#define CONFIG_AT91_GPIO
 #define CONFIG_AT91_GPIO_PULLUP		1
 #define CONFIG_PCA953X
 #define CONFIG_SYS_I2C_PCA953X_ADDR	0x28
 #define CONFIG_SYS_I2C_PCA953X_WIDTH	{ {0x28, 16} }
 
 /* UARTs/Serial console */
-#define CONFIG_ATMEL_USART
 #ifndef CONFIG_DM_SERIAL
 #define CONFIG_USART_BASE		ATMEL_BASE_DBGU
 #define CONFIG_USART_ID			ATMEL_ID_SYS
 #endif
 
 /* I2C - Bit-bashed */
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_SOFT		/* I2C bit-banged */
 #define CONFIG_SYS_I2C_SOFT_SPEED	100000
 #define CONFIG_SYS_I2C_SOFT_SLAVE	0x7F
@@ -108,7 +105,6 @@
 #define CONFIG_BOOTP_BOOTFILESIZE
 
 /* Environment settings */
-#define CONFIG_ENV_OVERWRITE
 
 /* Console settings */
 

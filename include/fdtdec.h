@@ -24,15 +24,16 @@
 typedef phys_addr_t fdt_addr_t;
 typedef phys_size_t fdt_size_t;
 
-#ifdef CONFIG_PHYS_64BIT
 #define FDT_ADDR_T_NONE (-1U)
+#define FDT_SIZE_T_NONE (-1U)
+
+#ifdef CONFIG_PHYS_64BIT
 #define fdt_addr_to_cpu(reg) be64_to_cpu(reg)
 #define fdt_size_to_cpu(reg) be64_to_cpu(reg)
 #define cpu_to_fdt_addr(reg) cpu_to_be64(reg)
 #define cpu_to_fdt_size(reg) cpu_to_be64(reg)
 typedef fdt64_t fdt_val_t;
 #else
-#define FDT_ADDR_T_NONE (-1U)
 #define fdt_addr_to_cpu(reg) be32_to_cpu(reg)
 #define fdt_size_to_cpu(reg) be32_to_cpu(reg)
 #define cpu_to_fdt_addr(reg) cpu_to_be32(reg)
@@ -139,8 +140,6 @@ enum fdt_compat_id {
 					/* Tegra124 XUSB pad controller */
 	COMPAT_NVIDIA_TEGRA210_XUSB_PADCTL,
 					/* Tegra210 XUSB pad controller */
-	COMPAT_SMSC_LAN9215,		/* SMSC 10/100 Ethernet LAN9215 */
-	COMPAT_SAMSUNG_EXYNOS5_SROMC,	/* Exynos5 SROMC */
 	COMPAT_SAMSUNG_EXYNOS_USB_PHY,	/* Exynos phy controller for usb2.0 */
 	COMPAT_SAMSUNG_EXYNOS5_USB3_PHY,/* Exynos phy controller for usb3.0 */
 	COMPAT_SAMSUNG_EXYNOS_TMU,	/* Exynos TMU */
@@ -443,6 +442,19 @@ int fdtdec_get_pci_vendev(const void *blob, int node,
  */
 int fdtdec_get_pci_bar32(const struct udevice *dev, struct fdt_pci_addr *addr,
 			 u32 *bar);
+
+/**
+ * Look at the bus range property of a device node and return the pci bus
+ * range for this node.
+ * The property must hold one fdt_pci_addr with a length.
+ * @param blob		FDT blob
+ * @param node		node to examine
+ * @param res		the resource structure to return the bus range
+ * @return 0 if ok, negative on error
+ */
+
+int fdtdec_get_pci_bus_range(const void *blob, int node,
+			     struct fdt_resource *res);
 
 /**
  * Look up a 32-bit integer property in a node and return it. The property
@@ -909,26 +921,6 @@ int fdtdec_decode_display_timing(const void *blob, int node, int index,
 				 struct display_timing *config);
 
 /**
- * fdtdec_setup_mem_size_base_fdt() - decode and setup gd->ram_size and
- * gd->ram_start
- *
- * Decode the /memory 'reg' property to determine the size and start of the
- * first memory bank, populate the global data with the size and start of the
- * first bank of memory.
- *
- * This function should be called from a boards dram_init(). This helper
- * function allows for boards to query the device tree for DRAM size and start
- * address instead of hard coding the value in the case where the memory size
- * and start address cannot be detected automatically.
- *
- * @param blob		FDT blob
- *
- * @return 0 if OK, -EINVAL if the /memory node or reg property is missing or
- * invalid
- */
-int fdtdec_setup_mem_size_base_fdt(const void *blob);
-
-/**
  * fdtdec_setup_mem_size_base() - decode and setup gd->ram_size and
  * gd->ram_start
  *
@@ -947,23 +939,21 @@ int fdtdec_setup_mem_size_base_fdt(const void *blob);
 int fdtdec_setup_mem_size_base(void);
 
 /**
- * fdtdec_setup_memory_banksize_fdt() - decode and populate gd->bd->bi_dram
+ * fdtdec_setup_mem_size_base_lowest() - decode and setup gd->ram_size and
+ * gd->ram_start by lowest available memory base
  *
- * Decode the /memory 'reg' property to determine the address and size of the
- * memory banks. Use this data to populate the global data board info with the
- * phys address and size of memory banks.
+ * Decode the /memory 'reg' property to determine the lowest start of the memory
+ * bank bank and populate the global data with it.
  *
- * This function should be called from a boards dram_init_banksize(). This
- * helper function allows for boards to query the device tree for memory bank
- * information instead of hard coding the information in cases where it cannot
- * be detected automatically.
- *
- * @param blob		FDT blob
+ * This function should be called from a boards dram_init(). This helper
+ * function allows for boards to query the device tree for DRAM size and start
+ * address instead of hard coding the value in the case where the memory size
+ * and start address cannot be detected automatically.
  *
  * @return 0 if OK, -EINVAL if the /memory node or reg property is missing or
  * invalid
  */
-int fdtdec_setup_memory_banksize_fdt(const void *blob);
+int fdtdec_setup_mem_size_base_lowest(void);
 
 /**
  * fdtdec_setup_memory_banksize() - decode and populate gd->bd->bi_dram
@@ -1038,7 +1028,7 @@ static inline int fdtdec_set_phandle(void *blob, int node, uint32_t phandle)
  *     };
  *     uint32_t phandle;
  *
- *     fdtdec_add_reserved_memory(fdt, "framebuffer", &fb, &phandle);
+ *     fdtdec_add_reserved_memory(fdt, "framebuffer", &fb, &phandle, false);
  *
  * This results in the following subnode being added to the top-level
  * /reserved-memory node:
@@ -1065,11 +1055,12 @@ static inline int fdtdec_set_phandle(void *blob, int node, uint32_t phandle)
  * @param carveout	information about the carveout region
  * @param phandlep	return location for the phandle of the carveout region
  *			can be NULL if no phandle should be added
+ * @param no_map	add "no-map" property if true
  * @return 0 on success or a negative error code on failure
  */
 int fdtdec_add_reserved_memory(void *blob, const char *basename,
 			       const struct fdt_memory *carveout,
-			       uint32_t *phandlep);
+			       uint32_t *phandlep, bool no_map);
 
 /**
  * fdtdec_get_carveout() - reads a carveout from an FDT

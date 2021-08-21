@@ -14,12 +14,8 @@
 
 #include "mx6_common.h"
 
-#define CONFIG_IMX_THERMAL
-
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(10 * SZ_1M)
-
-#define CONFIG_MXC_UART
 
 #ifdef CONFIG_SPL
 #include "imx6_spl.h"
@@ -30,7 +26,7 @@
 #define CONFIG_SYS_FSL_USDHC_NUM	2
 
 /* I2C config */
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
 #define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
@@ -45,8 +41,6 @@
 
 /* Commands */
 
-/* allow to overwrite serial and ethaddr */
-#define CONFIG_ENV_OVERWRITE
 #define CONFIG_MXC_UART_BASE	UART2_BASE
 
 #define CONFIG_BOARD_NAME	EL6Q
@@ -89,10 +83,5 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* environment organization */
-
-#if defined(CONFIG_ENV_IS_IN_MMC)
-#define CONFIG_SYS_MMC_ENV_DEV		1
-#define CONFIG_SYS_MMC_ENV_PART		2
-#endif
 
 #endif                         /* __EL6Q_COMMON_CONFIG_H */

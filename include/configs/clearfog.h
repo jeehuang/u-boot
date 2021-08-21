@@ -17,16 +17,6 @@
  * for DDR ECC byte filling in the SPL before loading the main
  * U-Boot into it.
  */
-#define CONFIG_SYS_TCLK		250000000	/* 250MHz */
-
-/*
- * Commands configuration
- */
-
-/*
- * SDIO/MMC Card Configuration
- */
-#define CONFIG_SYS_MMC_BASE		MVEBU_SDIO_BASE
 
 /* USB/EHCI configuration */
 #define CONFIG_EHCI_IS_TDI
@@ -34,7 +24,6 @@
 #define CONFIG_ENV_MIN_ENTRIES		128
 
 /* Environment in MMC */
-#define CONFIG_SYS_MMC_ENV_DEV		0
 /*
  * For SD - reserve 1 LBA for MBR + 1M for u-boot image. The MMC/eMMC
  * boot image starts @ LBA-0.
@@ -79,13 +68,8 @@
 #define CONFIG_SPL_STACK		(0x40000000 + ((192 - 16) << 10))
 #define CONFIG_SPL_BOOTROM_SAVE		(CONFIG_SPL_STACK + 4)
 
-#if defined(CONFIG_MVEBU_SPL_BOOT_DEVICE_SPI)
-/* SPL related SPI defines */
-#define CONFIG_SYS_U_BOOT_OFFS		CONFIG_SYS_SPI_U_BOOT_OFFS
-#elif defined(CONFIG_MVEBU_SPL_BOOT_DEVICE_MMC) || defined(CONFIG_MVEBU_SPL_BOOT_DEVICE_SATA)
+#if defined(CONFIG_MVEBU_SPL_BOOT_DEVICE_MMC) || defined(CONFIG_MVEBU_SPL_BOOT_DEVICE_SATA)
 /* SPL related MMC defines */
-#define CONFIG_SYS_MMC_U_BOOT_OFFS		(160 << 10)
-#define CONFIG_SYS_U_BOOT_OFFS			CONFIG_SYS_MMC_U_BOOT_OFFS
 #ifdef CONFIG_SPL_BUILD
 #define CONFIG_FIXED_SDHCI_ALIGNED_BUFFER	0x00180000	/* in SDRAM */
 #endif

@@ -18,6 +18,7 @@
 #include <init.h>
 #include <log.h>
 #include <net.h>
+#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <asm/arch/imx-regs.h>
@@ -116,6 +117,7 @@ void board_boot_order(u32 *spl_boot_list)
 {
 	spl_boot_list[0] = BOOT_DEVICE_MMC1;
 	spl_boot_list[1] = BOOT_DEVICE_SPI;
+	spl_boot_list[2] = BOOT_DEVICE_UART;
 }
 
 int spl_start_uboot(void)
@@ -188,7 +190,7 @@ static int fdt_fixup_l2switch(void *blob)
 	return 0;
 }
 
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	/*
 	 * i.MX28 L2 switch needs manual update (fixup) of eth MAC address

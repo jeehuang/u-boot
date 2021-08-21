@@ -13,11 +13,9 @@
 #if defined(CONFIG_LSCHLV2)
 #define CONFIG_SYS_KWD_CONFIG $(CONFIG_BOARDDIR)/kwbimage-lschl.cfg
 #define CONFIG_MACH_TYPE 3006
-#define CONFIG_SYS_TCLK 166666667 /* 166 MHz */
 #elif defined(CONFIG_LSXHL)
 #define CONFIG_SYS_KWD_CONFIG $(CONFIG_BOARDDIR)/kwbimage-lsxhl.cfg
 #define CONFIG_MACH_TYPE 2663
-/* CONFIG_SYS_TCLK is 200000000 by default */
 #else
 #error "unknown board"
 #endif
@@ -32,14 +30,6 @@
 
 #define CONFIG_KIRKWOOD_GPIO
 
-/*
- * Commands configuration
- */
-
-/*
- * mv-common.h should be defined after CMD configs since it used them
- * to enable certain macros
- */
 #include "mv-common.h"
 
 /* loading initramfs images without uimage header */

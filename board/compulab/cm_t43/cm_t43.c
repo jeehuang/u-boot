@@ -8,6 +8,7 @@
 #include <miiphy.h>
 #include <cpsw.h>
 #include <net.h>
+#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/emif.h>
@@ -149,7 +150,7 @@ static void board_phy_init(void)
 	mdelay(2);
 }
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int rv;
 

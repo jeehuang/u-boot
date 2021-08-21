@@ -17,15 +17,8 @@
 #define CONFIG_SYS_BOOK3E_HV		/* Category E.HV supported */
 #define CONFIG_ENABLE_36BIT_PHYS
 
-#ifdef CONFIG_PHYS_64BIT
-#define CONFIG_ADDR_MAP		1
-#define CONFIG_SYS_NUM_ADDR_MAP	64	/* number of TLB1 entries */
-#endif
-
 #define CONFIG_SYS_FSL_CPC		/* Corenet Platform Cache */
 #define CONFIG_SYS_NUM_CPC		CONFIG_SYS_NUM_DDR_CTLRS
-
-#define CONFIG_ENV_OVERWRITE
 
 /* support deep sleep */
 #ifdef CONFIG_ARCH_T1024
@@ -137,11 +130,6 @@
 #define CONFIG_SYS_SRIO_PCIE_BOOT_SLAVE_ADDR_PHYS	\
 		(0x300000000ull | CONFIG_SYS_SRIO_PCIE_BOOT_SLAVE_ADDR)
 #define CONFIG_RESET_VECTOR_ADDRESS 0xfffffffc
-#endif
-
-#if defined(CONFIG_SPIFLASH)
-#elif defined(CONFIG_SDCARD)
-#define CONFIG_SYS_MMC_ENV_DEV		0
 #endif
 
 #ifndef __ASSEMBLY__
@@ -434,8 +422,8 @@ unsigned long get_board_ddr_clk(void);
 #endif
 
 /* I2C */
-#ifndef CONFIG_DM_I2C
-#define CONFIG_SYS_I2C
+#if !CONFIG_IS_ENABLED(DM_I2C)
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_FSL_I2C_SPEED	50000	/* I2C speed in Hz */
 #define CONFIG_SYS_FSL_I2C_SLAVE	0x7F
 #define CONFIG_SYS_FSL_I2C2_SPEED	50000	/* I2C speed in Hz */
@@ -497,23 +485,6 @@ unsigned long get_board_ddr_clk(void);
 #define CONFIG_SYS_PCIE3_MEM_PHYS	0xc20000000ull
 #define CONFIG_SYS_PCIE3_IO_VIRT	0xf8020000
 #define CONFIG_SYS_PCIE3_IO_PHYS	0xff8020000ull
-#endif
-
-#if !defined(CONFIG_DM_PCI)
-#define CONFIG_FSL_PCI_INIT	/* Use common FSL init code */
-#define CONFIG_SYS_PCIE1_MEM_BUS	0xe0000000
-#define CONFIG_SYS_PCIE1_MEM_SIZE	0x10000000	/* 256M */
-#define CONFIG_SYS_PCIE1_IO_BUS		0x00000000
-#define CONFIG_SYS_PCIE1_IO_SIZE	0x00010000	/* 64k */
-#define CONFIG_SYS_PCIE2_MEM_BUS	0xe0000000
-#define CONFIG_SYS_PCIE2_MEM_SIZE	0x10000000 /* 256M */
-#define CONFIG_SYS_PCIE2_IO_BUS		0x00000000
-#define CONFIG_SYS_PCIE2_IO_SIZE	0x00010000	/* 64k */
-#define CONFIG_SYS_PCIE3_MEM_BUS	0xe0000000
-#define CONFIG_SYS_PCIE3_MEM_SIZE	0x10000000	/* 256M */
-#define CONFIG_SYS_PCIE3_IO_BUS		0x00000000
-#define CONFIG_SYS_PCIE3_IO_SIZE	0x00010000	/* 64k */
-#define CONFIG_PCI_INDIRECT_BRIDGE
 #endif
 
 #define CONFIG_PCI_SCAN_SHOW		/* show pci devices on startup */

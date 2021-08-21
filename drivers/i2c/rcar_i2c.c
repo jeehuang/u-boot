@@ -211,7 +211,7 @@ static int rcar_i2c_xfer(struct udevice *dev, struct i2c_msg *msg, int nmsgs)
 	int ret;
 
 	for (; nmsgs > 0; nmsgs--, msg++) {
-		ret = rcar_i2c_set_addr(dev, msg->addr, 1);
+		ret = rcar_i2c_set_addr(dev, msg->addr, !!(msg->flags & I2C_M_RD));
 		if (ret)
 			return ret;
 
@@ -371,6 +371,6 @@ U_BOOT_DRIVER(i2c_rcar) = {
 	.id		= UCLASS_I2C,
 	.of_match	= rcar_i2c_ids,
 	.probe		= rcar_i2c_probe,
-	.priv_auto_alloc_size = sizeof(struct rcar_i2c_priv),
+	.priv_auto	= sizeof(struct rcar_i2c_priv),
 	.ops		= &rcar_i2c_ops,
 };

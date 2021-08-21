@@ -12,8 +12,6 @@
 
 #define CONFIG_DISPLAY_BOARDINFO_LATE
 
-#define CONFIG_SYS_TCLK		250000000	/* 250MHz */
-
 /*
  * NS16550 Configuration
  */
@@ -29,13 +27,6 @@
  * The following definitions let you select what serial you want to use
  * for your console driver.
  */
-
-#define CONFIG_CONS_INDEX	1	/*Console on UART0 */
-
-/*
- * Commands configuration
- */
-#define CONFIG_CMD_PCI
 
 /* NAND */
 #define CONFIG_SYS_NAND_ONFI_DETECTION
@@ -69,10 +60,6 @@
 
 /* NAND */
 #define CONFIG_SYS_NAND_ONFI_DETECTION
-#define CONFIG_CMD_UBI
-#define CONFIG_CMD_UBIFS
-#define CONFIG_LZO
-#define CONFIG_CMD_MTDPARTS
 
 #define CONFIG_SYS_MALLOC_LEN		(4 << 20)
 
@@ -107,8 +94,5 @@
 
 #define CONFIG_SPL_STACK		(0x40000000 + ((192 - 16) << 10))
 #define CONFIG_SPL_BOOTROM_SAVE		(CONFIG_SPL_STACK + 4)
-
-/* SPL related SPI defines */
-#define CONFIG_SYS_U_BOOT_OFFS		CONFIG_SYS_SPI_U_BOOT_OFFS
 
 #endif /* _CONFIG_X530_H */

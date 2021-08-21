@@ -19,7 +19,6 @@
 /*
  * Environment settings
  */
-#define	CONFIG_ENV_OVERWRITE
 #define	CONFIG_SYS_MALLOC_LEN		(128 * 1024)
 #define	CONFIG_BOOTCOMMAND						\
 	"if fatload mmc 0 0xa0000000 uImage; then "			\
@@ -42,7 +41,7 @@
  */
 
 /* I2C support */
-#ifdef CONFIG_SYS_I2C
+#ifdef CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_PXA
 #define CONFIG_PXA_STD_I2C
 #define CONFIG_PXA_PWR_I2C
@@ -69,8 +68,6 @@
 
 #define	CONFIG_BOOTP_BOOTFILESIZE
 #endif
-
-#define	CONFIG_SYS_DEVICE_NULLDEV	1
 
 /*
  * Clock Configuration

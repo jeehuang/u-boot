@@ -16,10 +16,6 @@
  */
 #define CONFIG_PHYSMEM
 
-#define CONFIG_LMB
-
-#undef CONFIG_ZLIB
-#undef CONFIG_GZIP
 #define CONFIG_SYS_BOOTM_LEN		(16 << 20)
 
 /* SATA AHCI storage */
@@ -42,10 +38,6 @@
  * Serial Configuration
  */
 #define CONFIG_SYS_NS16550_PORT_MAPPED
-
-/*-----------------------------------------------------------------------
- * Command line configuration.
- */
 
 #ifndef CONFIG_BOOTCOMMAND
 #define CONFIG_BOOTCOMMAND	\
@@ -71,9 +63,6 @@
 #define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
 #define CONFIG_SYS_MALLOC_LEN			0x200000
 
-/* allow to overwrite serial and ethaddr */
-#define CONFIG_ENV_OVERWRITE
-
 /*-----------------------------------------------------------------------
  * Environment configuration
  */
@@ -87,7 +76,6 @@
  * USB configuration
  */
 
-#define CONFIG_TFTP_TSIZE
 #define CONFIG_BOOTP_BOOTFILESIZE
 
 /* Default environment */

@@ -9,6 +9,7 @@
 #include <log.h>
 #include <spl.h>
 #include <fsl_esdhc.h>
+#include <asm/global_data.h>
 
 #include <asm/io.h>
 #include <asm/gpio.h>
@@ -96,7 +97,7 @@ static iomux_cfg_t usdhc2_sd[] = {
 	SC_P_USDHC2_CD_B | MUX_MODE_ALT(3) | MUX_PAD_CTRL(ESDHC_PAD_CTRL),
 };
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i, ret;
 

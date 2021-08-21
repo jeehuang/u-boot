@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /*
- * Copyright (C) 2019, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2019-2020, STMicroelectronics - All Rights Reserved
  */
 
+#define LOG_CATEGORY LOGC_ARCH
+
 #include <common.h>
+#include <fdtdec.h>
 #include <fdt_support.h>
 #include <log.h>
 #include <tee.h>
@@ -172,15 +175,15 @@ static int stm32_fdt_fixup_etzpc(void *fdt, int soc_node)
 		status = (decprot[offset] >> shift) & DECPROT_MASK;
 		addr = array[i];
 
-		debug("ETZPC: 0x%08x decprot %d=%d\n", addr, i, status);
+		log_debug("ETZPC: 0x%08x decprot %d=%d\n", addr, i, status);
 
 		if (addr == ETZPC_RESERVED ||
 		    status == DECPROT_NON_SECURED)
 			continue;
 
 		if (fdt_disable_subnode_by_address(fdt, soc_node, addr))
-			printf("ETZPC: 0x%08x node disabled, decprot %d=%d\n",
-			       addr, i, status);
+			log_notice("ETZPC: 0x%08x node disabled, decprot %d=%d\n",
+				   addr, i, status);
 	}
 
 	return 0;
@@ -194,7 +197,7 @@ static void stm32_fdt_fixup_cpu(void *blob, char *name)
 
 	off = fdt_path_offset(blob, "/cpus");
 	if (off < 0) {
-		printf("%s: couldn't find /cpus node\n", __func__);
+		log_warning("%s: couldn't find /cpus node\n", __func__);
 		return;
 	}
 
@@ -203,7 +206,8 @@ static void stm32_fdt_fixup_cpu(void *blob, char *name)
 		reg = fdtdec_get_addr(blob, off, "reg");
 		if (reg != 0) {
 			fdt_del_node(blob, off);
-			printf("FDT: cpu %d node remove for %s\n", reg, name);
+			log_notice("FDT: cpu %d node remove for %s\n",
+				   reg, name);
 			/* after delete we can't trust the offsets anymore */
 			off = -1;
 		}
@@ -216,27 +220,31 @@ static void stm32_fdt_disable(void *fdt, int offset, u32 addr,
 			      const char *string, const char *name)
 {
 	if (fdt_disable_subnode_by_address(fdt, offset, addr))
-		printf("FDT: %s@%08x node disabled for %s\n",
-		       string, addr, name);
+		log_notice("FDT: %s@%08x node disabled for %s\n",
+			   string, addr, name);
 }
 
 static void stm32_fdt_disable_optee(void *blob)
 {
 	int off, node;
 
+	/* Delete "optee" firmware node */
 	off = fdt_node_offset_by_compatible(blob, -1, "linaro,optee-tz");
 	if (off >= 0 && fdtdec_get_is_enabled(blob, off))
-		fdt_status_disabled(blob, off);
+		fdt_del_node(blob, off);
 
-	/* Disabled "optee@..." reserved-memory node */
+	/* Delete "optee@..." reserved-memory node */
 	off = fdt_path_offset(blob, "/reserved-memory/");
 	if (off < 0)
 		return;
 	for (node = fdt_first_subnode(blob, off);
 	     node >= 0;
 	     node = fdt_next_subnode(blob, node)) {
-		if (!strncmp(fdt_get_name(blob, node, NULL), "optee@", 6))
-			fdt_status_disabled(blob, node);
+		if (strncmp(fdt_get_name(blob, node, NULL), "optee@", 6))
+			continue;
+
+		if (fdt_del_node(blob, node))
+			printf("Failed to remove optee reserved-memory node\n");
 	}
 }
 
@@ -244,7 +252,7 @@ static void stm32_fdt_disable_optee(void *blob)
  * This function is called right before the kernel is booted. "blob" is the
  * device tree that will be passed to the kernel.
  */
-int ft_system_setup(void *blob, bd_t *bd)
+int ft_system_setup(void *blob, struct bd_info *bd)
 {
 	int ret = 0;
 	int soc;
@@ -324,7 +332,16 @@ int ft_system_setup(void *blob, bd_t *bd)
 				       "st,package", pkg, false);
 	}
 
-	if (!CONFIG_IS_ENABLED(OPTEE) ||
+	/*
+	 * TEMP: remove OP-TEE nodes in kernel device tree
+	 *       copied from U-Boot device tree by optee_copy_fdt_nodes
+	 *       when OP-TEE is not detected (probe failed)
+	 * these OP-TEE nodes are present in <board>-u-boot.dtsi
+	 * under CONFIG_STM32MP15x_STM32IMAGE only for compatibility
+	 * when FIP is not used by TF-A
+	 */
+	if (CONFIG_IS_ENABLED(STM32MP15x_STM32IMAGE) &&
+	    CONFIG_IS_ENABLED(OPTEE) &&
 	    !tee_find_device(NULL, NULL, NULL, NULL))
 		stm32_fdt_disable_optee(blob);
 

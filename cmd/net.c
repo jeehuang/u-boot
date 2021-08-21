@@ -10,9 +10,12 @@
 #include <common.h>
 #include <bootstage.h>
 #include <command.h>
+#include <dm.h>
 #include <env.h>
 #include <image.h>
 #include <net.h>
+#include <net/udp.h>
+#include <net/sntp.h>
 
 static int netboot_common(enum proto_t, struct cmd_tbl *, int, char * const []);
 
@@ -135,11 +138,15 @@ static void netboot_update_env(void)
 		env_set("netmask", tmp);
 	}
 
+#ifdef CONFIG_CMD_BOOTP
 	if (net_hostname[0])
 		env_set("hostname", net_hostname);
+#endif
 
+#ifdef CONFIG_CMD_BOOTP
 	if (net_root_path[0])
 		env_set("rootpath", net_root_path);
+#endif
 
 	if (net_ip.s_addr) {
 		ip_to_string(net_ip, tmp);
@@ -165,8 +172,10 @@ static void netboot_update_env(void)
 		env_set("dnsip2", tmp);
 	}
 #endif
+#ifdef CONFIG_CMD_BOOTP
 	if (net_nis_domain[0])
 		env_set("domain", net_nis_domain);
+#endif
 
 #if defined(CONFIG_CMD_SNTP) && defined(CONFIG_BOOTP_TIMEOFFSET)
 	if (net_ntp_time_offset) {
@@ -196,7 +205,7 @@ static int netboot_common(enum proto_t proto, struct cmd_tbl *cmdtp, int argc,
 	/* pre-set image_load_addr */
 	s = env_get("loadaddr");
 	if (s != NULL)
-		image_load_addr = simple_strtoul(s, NULL, 16);
+		image_load_addr = hextoul(s, NULL);
 
 	switch (argc) {
 	case 1:
@@ -211,7 +220,7 @@ static int netboot_common(enum proto_t proto, struct cmd_tbl *cmdtp, int argc,
 		 * form must be written in a format which can not be
 		 * mis-interpreted as a valid number.
 		 */
-		addr = simple_strtoul(argv[1], &end, 16);
+		addr = hextoul(argv[1], &end);
 		if (end == (argv[1] + strlen(argv[1]))) {
 			image_load_addr = addr;
 			/* refresh bootfile name from env */
@@ -225,7 +234,7 @@ static int netboot_common(enum proto_t proto, struct cmd_tbl *cmdtp, int argc,
 		break;
 
 	case 3:
-		image_load_addr = simple_strtoul(argv[1], NULL, 16);
+		image_load_addr = hextoul(argv[1], NULL);
 		net_boot_file_name_explicit = true;
 		copy_filename(net_boot_file_name, argv[2],
 			      sizeof(net_boot_file_name));
@@ -350,6 +359,12 @@ U_BOOT_CMD(
 #endif
 
 #if defined(CONFIG_CMD_SNTP)
+static struct udp_ops sntp_ops = {
+	.prereq = sntp_prereq,
+	.start = sntp_start,
+	.data = NULL,
+};
+
 int do_sntp(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
 	char *toff;
@@ -374,7 +389,7 @@ int do_sntp(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	else
 		net_ntp_time_offset = simple_strtol(toff, NULL, 10);
 
-	if (net_loop(SNTP) < 0) {
+	if (udp_loop(&sntp_ops) < 0) {
 		printf("SNTP failed: host %pI4 not responding\n",
 		       &net_ntp_server);
 		return CMD_RET_FAILURE;
@@ -466,3 +481,48 @@ U_BOOT_CMD(
 );
 
 #endif  /* CONFIG_CMD_LINK_LOCAL */
+
+#ifdef CONFIG_DM_ETH
+static int do_net_list(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	const struct udevice *current = eth_get_dev();
+	unsigned char env_enetaddr[ARP_HLEN];
+	const struct udevice *dev;
+	struct uclass *uc;
+
+	uclass_id_foreach_dev(UCLASS_ETH, dev, uc) {
+		eth_env_get_enetaddr_by_index("eth", dev_seq(dev), env_enetaddr);
+		printf("eth%d : %s %pM %s\n", dev_seq(dev), dev->name, env_enetaddr,
+		       current == dev ? "active" : "");
+	}
+	return CMD_RET_SUCCESS;
+}
+
+static struct cmd_tbl cmd_net[] = {
+	U_BOOT_CMD_MKENT(list, 1, 0, do_net_list, "", ""),
+};
+
+static int do_net(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+{
+	struct cmd_tbl *cp;
+
+	cp = find_cmd_tbl(argv[1], cmd_net, ARRAY_SIZE(cmd_net));
+
+	/* Drop the net command */
+	argc--;
+	argv++;
+
+	if (!cp || argc > cp->maxargs)
+		return CMD_RET_USAGE;
+	if (flag == CMD_FLAG_REPEAT && !cmd_is_repeatable(cp))
+		return CMD_RET_SUCCESS;
+
+	return cp->cmd(cmdtp, flag, argc, argv);
+}
+
+U_BOOT_CMD(
+	net, 2, 1, do_net,
+	"NET sub-system",
+	"list - list available devices\n"
+);
+#endif // CONFIG_DM_ETH

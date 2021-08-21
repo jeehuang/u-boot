@@ -130,7 +130,7 @@ static int mtk_pwm_probe(struct udevice *dev)
 	int i;
 
 	priv->soc = (struct mtk_pwm_soc *)dev_get_driver_data(dev);
-	priv->base = (void __iomem *)devfdt_get_addr(dev);
+	priv->base = dev_read_addr_ptr(dev);
 	if (!priv->base)
 		return -EINVAL;
 	ret = clk_get_by_name(dev, "top", &priv->top_clk);
@@ -184,5 +184,5 @@ U_BOOT_DRIVER(mtk_pwm) = {
 	.of_match = mtk_pwm_ids,
 	.ops = &mtk_pwm_ops,
 	.probe = mtk_pwm_probe,
-	.priv_auto_alloc_size = sizeof(struct mtk_pwm_priv),
+	.priv_auto	= sizeof(struct mtk_pwm_priv),
 };

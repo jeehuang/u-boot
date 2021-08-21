@@ -6,20 +6,21 @@
 
 #include <common.h>
 #include <cpu_func.h>
+#include <dm/device_compat.h>
+#include <fsl-mc/fsl_dpmac.h>
+#include <fsl-mc/ldpaa_wriop.h>
+#include <hwconfig.h>
 #include <log.h>
+#include <malloc.h>
+#include <miiphy.h>
+#include <net.h>
+#include <phy.h>
 #include <asm/io.h>
 #include <asm/types.h>
-#include <malloc.h>
-#include <net.h>
-#include <hwconfig.h>
-#include <phy.h>
-#include <miiphy.h>
 #include <linux/bug.h>
 #include <linux/compat.h>
-#include <fsl-mc/fsl_dpmac.h>
 #include <linux/delay.h>
-
-#include <fsl-mc/ldpaa_wriop.h>
+#include <asm/global_data.h>
 #include "ldpaa_eth.h"
 
 #ifdef CONFIG_PHYLIB
@@ -511,10 +512,10 @@ static int ldpaa_get_dpmac_state(struct ldpaa_eth_priv *priv,
 #ifdef CONFIG_DM_ETH
 static int ldpaa_eth_open(struct udevice *dev)
 {
-	struct eth_pdata *plat = dev_get_platdata(dev);
+	struct eth_pdata *plat = dev_get_plat(dev);
 	struct ldpaa_eth_priv *priv = dev_get_priv(dev);
 #else
-static int ldpaa_eth_open(struct eth_device *net_dev, bd_t *bd)
+static int ldpaa_eth_open(struct eth_device *net_dev, struct bd_info *bd)
 {
 	struct ldpaa_eth_priv *priv = (struct ldpaa_eth_priv *)net_dev->priv;
 #endif
@@ -1160,7 +1161,7 @@ static int ldpaa_eth_bind(struct udevice *dev)
 	return 0;
 }
 
-static int ldpaa_eth_ofdata_to_platdata(struct udevice *dev)
+static int ldpaa_eth_of_to_plat(struct udevice *dev)
 {
 	struct ldpaa_eth_priv *priv = dev_get_priv(dev);
 	const char *phy_mode_str;
@@ -1187,12 +1188,12 @@ U_BOOT_DRIVER(ldpaa_eth) = {
 	.name = "ldpaa_eth",
 	.id = UCLASS_ETH,
 	.of_match = ldpaa_eth_of_ids,
-	.ofdata_to_platdata = ldpaa_eth_ofdata_to_platdata,
+	.of_to_plat = ldpaa_eth_of_to_plat,
 	.bind = ldpaa_eth_bind,
 	.probe = ldpaa_eth_probe,
 	.ops = &ldpaa_eth_ops,
-	.priv_auto_alloc_size = sizeof(struct ldpaa_eth_priv),
-	.platdata_auto_alloc_size = sizeof(struct eth_pdata),
+	.priv_auto	= sizeof(struct ldpaa_eth_priv),
+	.plat_auto	= sizeof(struct eth_pdata),
 };
 
 #else

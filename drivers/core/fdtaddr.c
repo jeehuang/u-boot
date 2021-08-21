@@ -12,6 +12,7 @@
 #include <dm.h>
 #include <fdt_support.h>
 #include <log.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <dm/device-internal.h>
 
@@ -154,7 +155,9 @@ fdt_addr_t devfdt_get_addr(const struct udevice *dev)
 
 void *devfdt_get_addr_ptr(const struct udevice *dev)
 {
-	return (void *)(uintptr_t)devfdt_get_addr_index(dev, 0);
+	fdt_addr_t addr = devfdt_get_addr_index(dev, 0);
+
+	return (addr == FDT_ADDR_T_NONE) ? NULL : (void *)(uintptr_t)addr;
 }
 
 void *devfdt_remap_addr_index(const struct udevice *dev, int index)
@@ -197,8 +200,7 @@ fdt_addr_t devfdt_get_addr_pci(const struct udevice *dev)
 	ulong addr;
 
 	addr = devfdt_get_addr(dev);
-	if (CONFIG_IS_ENABLED(PCI) && IS_ENABLED(CONFIG_DM_PCI) &&
-	    addr == FDT_ADDR_T_NONE) {
+	if (CONFIG_IS_ENABLED(PCI) && addr == FDT_ADDR_T_NONE) {
 		struct fdt_pci_addr pci_addr;
 		u32 bar;
 		int ret;

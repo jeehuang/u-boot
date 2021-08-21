@@ -27,6 +27,7 @@
 #include <netdev.h>
 #include <asm/cache.h>
 #include <asm/cpm_8xx.h>
+#include <asm/global_data.h>
 #include <linux/compiler.h>
 #include <asm/io.h>
 
@@ -277,7 +278,7 @@ unsigned long get_tbclk(void)
  * Initializes on-chip ethernet controllers.
  * to override, implement board_eth_init()
  */
-int cpu_eth_init(bd_t *bis)
+int cpu_eth_init(struct bd_info *bis)
 {
 #if defined(CONFIG_MPC8XX_FEC)
 	fec_initialize(bis);

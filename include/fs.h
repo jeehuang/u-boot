@@ -6,6 +6,7 @@
 #define _FS_H
 
 #include <common.h>
+#include <rtc.h>
 
 struct cmd_tbl;
 
@@ -15,6 +16,7 @@ struct cmd_tbl;
 #define FS_TYPE_SANDBOX	3
 #define FS_TYPE_UBIFS	4
 #define FS_TYPE_BTRFS	5
+#define FS_TYPE_SQUASHFS 6
 
 struct blk_desc;
 
@@ -159,13 +161,26 @@ int fs_write(const char *filename, ulong addr, loff_t offset, loff_t len,
 #define FS_DT_REG  8         /* regular file */
 #define FS_DT_LNK  10        /* symbolic link */
 
-/*
- * A directory entry, returned by fs_readdir().  Returns information
+/**
+ * struct fs_dirent - directory entry
+ *
+ * A directory entry, returned by fs_readdir(). Returns information
  * about the file/directory at the current directory entry position.
  */
 struct fs_dirent {
-	unsigned type;       /* one of FS_DT_x (not a mask) */
-	loff_t size;         /* size in bytes */
+	/** @type:		one of FS_DT_x (not a mask) */
+	unsigned int type;
+	/** @size:		file size */
+	loff_t size;
+	/** @flags:		attribute flags (FS_ATTR_*) */
+	u32 attr;
+	/** create_time:	time of creation */
+	struct rtc_time create_time;
+	/** access_time:	time of last access */
+	struct rtc_time access_time;
+	/** change_time:	time of last modification */
+	struct rtc_time change_time;
+	/** name:		file name */
 	char name[256];
 };
 
@@ -258,5 +273,16 @@ int do_fs_uuid(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[],
  * possible to store the type directly in env.
  */
 int do_fs_type(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]);
+
+/**
+ * do_fs_types - List supported filesystems.
+ *
+ * @cmdtp: Command information for fstypes
+ * @flag: Command flags (CMD_FLAG_...)
+ * @argc: Number of arguments
+ * @argv: List of arguments
+ * @return result (see enum command_ret_t)
+ */
+int do_fs_types(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]);
 
 #endif /* _FS_H */

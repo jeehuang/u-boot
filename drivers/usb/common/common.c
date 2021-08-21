@@ -8,6 +8,7 @@
 
 #include <common.h>
 #include <dm.h>
+#include <asm/global_data.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/phy.h>
@@ -46,7 +47,15 @@ static const char *const speed_names[] = {
 	[USB_SPEED_HIGH] = "high-speed",
 	[USB_SPEED_WIRELESS] = "wireless",
 	[USB_SPEED_SUPER] = "super-speed",
+	[USB_SPEED_SUPER_PLUS] = "super-speed-plus",
 };
+
+const char *usb_speed_string(enum usb_device_speed speed)
+{
+	if (speed < 0 || speed >= ARRAY_SIZE(speed_names))
+		speed = USB_SPEED_UNKNOWN;
+	return speed_names[speed];
+}
 
 enum usb_device_speed usb_get_maximum_speed(ofnode node)
 {

@@ -27,7 +27,6 @@
 
 #define CONFIG_BOOT_RETRY_TIME	-1
 #define CONFIG_RESET_TO_RETRY
-#define CONFIG_SPLASH_SCREEN
 
 #define CONFIG_HW_WATCHDOG
 
@@ -42,10 +41,6 @@
  * BOOTP options
  */
 #define CONFIG_BOOTP_BOOTFILESIZE
-
-/*
- * Command line configuration.
- */
 
 #define CONFIG_MCFTMR
 
@@ -199,7 +194,7 @@
  * I2C
  */
 
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_FSL
 
 #define CONFIG_SYS_FSL_I2C_OFFSET	0x00000300
@@ -216,9 +211,6 @@
 /*-----------------------------------------------------------------------
  * VIDEO configuration
  */
-
-#ifdef CONFIG_VIDEO
-#define CONFIG_VIDEO_VCXK			1
 
 #define CONFIG_SYS_VCXK_DEFAULT_LINEALIGN	2
 #define	CONFIG_SYS_VCXK_DOUBLEBUFFERED		1
@@ -240,6 +232,5 @@
 #define CONFIG_SYS_VCXK_INVERT_DDR		MCFGPIO_DDRE
 #define CONFIG_SYS_VCXK_INVERT_PIN		MCFGPIO_PORT2
 
-#endif /* CONFIG_VIDEO */
 #endif	/* _CONFIG_M5282EVB_H */
 /*---------------------------------------------------------------------*/

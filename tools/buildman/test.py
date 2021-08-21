@@ -9,9 +9,6 @@ import tempfile
 import time
 import unittest
 
-# Bring in the patman libraries
-our_path = os.path.dirname(os.path.realpath(__file__))
-
 from buildman import board
 from buildman import bsettings
 from buildman import builder
@@ -190,7 +187,7 @@ class TestBuild(unittest.TestCase):
             expect += col.Color(expected_colour, ' %s' % board)
         self.assertEqual(text, expect)
 
-    def _SetupTest(self, echo_lines=False, **kwdisplay_args):
+    def _SetupTest(self, echo_lines=False, threads=1, **kwdisplay_args):
         """Set up the test by running a build and summary
 
         Args:
@@ -202,8 +199,8 @@ class TestBuild(unittest.TestCase):
         Returns:
             Iterator containing the output lines, each a PrintLine() object
         """
-        build = builder.Builder(self.toolchains, self.base_dir, None, 1, 2,
-                                checkout=False, show_unknown=False)
+        build = builder.Builder(self.toolchains, self.base_dir, None, threads,
+                                2, checkout=False, show_unknown=False)
         build.do_make = self.Make
         board_selected = self.boards.GetSelectedDict()
 
@@ -441,6 +438,12 @@ class TestBuild(unittest.TestCase):
                                 filter_migration_warnings=True)
         self._CheckOutput(lines, filter_migration_warnings=True)
 
+    def testSingleThread(self):
+        """Test operation without threading"""
+        lines = self._SetupTest(show_errors=True, threads=0)
+        self._CheckOutput(lines, list_error_boards=False,
+                          filter_dtb_warnings=False)
+
     def _testGit(self):
         """Test basic builder operation by building a branch"""
         options = Options()
@@ -541,8 +544,7 @@ class TestBuild(unittest.TestCase):
         build.commits = self.commits
         build.commit_count = len(self.commits)
         subject = self.commits[1].subject.translate(builder.trans_valid_chars)
-        dirname ='/%02d_of_%02d_g%s_%s' % (2, build.commit_count, commits[1][0],
-                                           subject[:20])
+        dirname ='/%02d_g%s_%s' % (2, commits[1][0], subject[:20])
         self.CheckDirs(build, dirname)
 
     def testOutputDirCurrent(self):
@@ -609,9 +611,9 @@ class TestBuild(unittest.TestCase):
         base_dir = tempfile.mkdtemp()
 
         # Add various files that we want removed and left alone
-        to_remove = ['01_of_22_g0982734987_title', '102_of_222_g92bf_title',
-                     '01_of_22_g2938abd8_title']
-        to_leave = ['something_else', '01-something.patch', '01_of_22_another']
+        to_remove = ['01_g0982734987_title', '102_g92bf_title',
+                     '01_g2938abd8_title']
+        to_leave = ['something_else', '01-something.patch', '01_another']
         for name in to_remove + to_leave:
             _Touch(name)
 

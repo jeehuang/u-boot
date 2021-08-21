@@ -10,28 +10,15 @@
 #include <common.h>
 #include <log.h>
 #include <malloc.h>
+#include <asm/global_data.h>
 DECLARE_GLOBAL_DATA_PTR;
 #endif /* !USE_HOSTCC*/
 #include <fdt_region.h>
 #include <image.h>
 #include <u-boot/rsa.h>
-#include <u-boot/rsa-checksum.h>
+#include <u-boot/hash-checksum.h>
 
 #define IMAGE_MAX_HASHED_NODES		100
-
-#ifdef USE_HOSTCC
-void *host_blob;
-
-void image_set_host_blob(void *blob)
-{
-	host_blob = blob;
-}
-
-void *image_get_host_blob(void)
-{
-	return host_blob;
-}
-#endif
 
 /**
  * fit_region_make_list() - Make a list of image regions
@@ -162,6 +149,14 @@ static int fit_image_verify_sig(const void *fit, int image_noffset,
 	fdt_for_each_subnode(noffset, fit, image_noffset) {
 		const char *name = fit_get_name(fit, noffset, NULL);
 
+		/*
+		 * We don't support this since libfdt considers names with the
+		 * name root but different @ suffix to be equal
+		 */
+		if (strchr(name, '@')) {
+			err_msg = "Node name contains @";
+			goto error;
+		}
 		if (!strncmp(name, FIT_SIG_NODENAME,
 			     strlen(FIT_SIG_NODENAME))) {
 			ret = fit_image_check_sig(fit, noffset, data,
@@ -250,7 +245,13 @@ static int fit_config_check_sig(const void *fit, int noffset,
 				int required_keynode, int conf_noffset,
 				char **err_msgp)
 {
-	char * const exc_prop[] = {"data", "data-size", "data-position"};
+	static char * const exc_prop[] = {
+		"data",
+		"data-size",
+		"data-position",
+		"data-offset"
+	};
+
 	const char *prop, *end, *name;
 	struct image_sign_info info;
 	const uint32_t *strings;
@@ -374,7 +375,7 @@ static int fit_config_verify_sig(const void *fit, int conf_noffset,
 				 const void *sig_blob, int sig_offset)
 {
 	int noffset;
-	char *err_msg = "";
+	char *err_msg = "No 'signature' subnode found";
 	int verified = 0;
 	int ret;
 
@@ -411,11 +412,25 @@ error:
 	return -EPERM;
 }
 
-int fit_config_verify_required_sigs(const void *fit, int conf_noffset,
-				    const void *sig_blob)
+static int fit_config_verify_required_sigs(const void *fit, int conf_noffset,
+					   const void *sig_blob)
 {
+	const char *name = fit_get_name(fit, conf_noffset, NULL);
 	int noffset;
 	int sig_node;
+	int verified = 0;
+	int reqd_sigs = 0;
+	bool reqd_policy_all = true;
+	const char *reqd_mode;
+
+	/*
+	 * We don't support this since libfdt considers names with the
+	 * name root but different @ suffix to be equal
+	 */
+	if (strchr(name, '@')) {
+		printf("Configuration node '%s' contains '@'\n", name);
+		return -EPERM;
+	}
 
 	/* Work out what we need to verify */
 	sig_node = fdt_subnode_offset(sig_blob, 0, FIT_SIG_NODENAME);
@@ -425,6 +440,14 @@ int fit_config_verify_required_sigs(const void *fit, int conf_noffset,
 		return 0;
 	}
 
+	/* Get required-mode policy property from DTB */
+	reqd_mode = fdt_getprop(sig_blob, sig_node, "required-mode", NULL);
+	if (reqd_mode && !strcmp(reqd_mode, "any"))
+		reqd_policy_all = false;
+
+	debug("%s: required-mode policy set to '%s'\n", __func__,
+	      reqd_policy_all ? "all" : "any");
+
 	fdt_for_each_subnode(noffset, sig_blob, sig_node) {
 		const char *required;
 		int ret;
@@ -433,13 +456,27 @@ int fit_config_verify_required_sigs(const void *fit, int conf_noffset,
 				       NULL);
 		if (!required || strcmp(required, "conf"))
 			continue;
+
+		reqd_sigs++;
+
 		ret = fit_config_verify_sig(fit, conf_noffset, sig_blob,
 					    noffset);
 		if (ret) {
-			printf("Failed to verify required signature '%s'\n",
-			       fit_get_name(sig_blob, noffset, NULL));
-			return ret;
+			if (reqd_policy_all) {
+				printf("Failed to verify required signature '%s'\n",
+				       fit_get_name(sig_blob, noffset, NULL));
+				return ret;
+			}
+		} else {
+			verified++;
+			if (!reqd_policy_all)
+				break;
 		}
+	}
+
+	if (reqd_sigs && !verified) {
+		printf("Failed to verify 'any' of the required signature(s)\n");
+		return -EPERM;
 	}
 
 	return 0;

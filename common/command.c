@@ -9,11 +9,15 @@
  */
 
 #include <common.h>
+#include <compiler.h>
 #include <command.h>
 #include <console.h>
 #include <env.h>
 #include <log.h>
+#include <asm/global_data.h>
 #include <linux/ctype.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 /*
  * Use puts() instead of printf() to avoid printf buffer overflow
@@ -473,22 +477,19 @@ int cmd_get_data_size(char* arg, int default_size)
 			return 2;
 		case 'l':
 			return 4;
-#ifdef MEM_SUPPORT_64BIT_DATA
-		case 'q':
-			return 8;
-#endif
 		case 's':
-			return -2;
+			return CMD_DATA_SIZE_STR;
+		case 'q':
+			if (MEM_SUPPORT_64BIT_DATA)
+				return 8;
+			/* no break */
 		default:
-			return -1;
+			return CMD_DATA_SIZE_ERR;
 		}
 	}
 	return default_size;
 }
 #endif
-
-#if defined(CONFIG_NEEDS_MANUAL_RELOC)
-DECLARE_GLOBAL_DATA_PTR;
 
 void fixup_cmdtable(struct cmd_tbl *cmdtp, int size)
 {
@@ -534,7 +535,6 @@ void fixup_cmdtable(struct cmd_tbl *cmdtp, int size)
 		cmdtp++;
 	}
 }
-#endif
 
 int cmd_always_repeatable(struct cmd_tbl *cmdtp, int flag, int argc,
 			  char *const argv[], int *repeatable)

@@ -24,9 +24,6 @@
  * as recommended by GNU/fdisk. See below for details:
  * http://homepage.ntlworld.com./jonathan.deboynepollard/FGA/disc-partition-alignment.html
  */
-#ifdef CONFIG_CMD_MMC
-#define CONFIG_SYS_MMC_ENV_DEV		0
-#endif
 
 /* Booting Linux */
 #define CONFIG_BOOTFILE			"fitImage"
@@ -55,7 +52,7 @@
 #endif
 
 /* I2C */
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
 #define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
@@ -92,7 +89,6 @@
 #define CONFIG_LBA48
 
 /* UART */
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART2_BASE
 
 /* USB Configs */
@@ -102,13 +98,9 @@
 #define CONFIG_MXC_USB_FLAGS		0
 /* Gadget part */
 #define CONFIG_USBD_HS
-#define CONFIG_NETCONSOLE
 #endif
 
 /* Video output */
-#define CONFIG_VIDEO_BMP_RLE8
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_BMP_16BPP
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_IMX_HDMI
 #define CONFIG_IMX_VIDEO_SKIP

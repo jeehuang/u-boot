@@ -1094,7 +1094,8 @@ static int mtk_phy_probe(struct udevice *dev)
 static void mtk_sgmii_init(struct mtk_eth_priv *priv)
 {
 	/* Set SGMII GEN2 speed(2.5G) */
-	clrsetbits_le32(priv->sgmii_base + SGMSYS_GEN2_SPEED,
+	clrsetbits_le32(priv->sgmii_base + ((priv->soc == SOC_MT7622) ?
+			SGMSYS_GEN2_SPEED : SGMSYS_GEN2_SPEED_V2),
 			SGMSYS_SPEED_2500, SGMSYS_SPEED_2500);
 
 	/* Disable SGMII AN */
@@ -1277,7 +1278,7 @@ static void mtk_eth_stop(struct udevice *dev)
 
 static int mtk_eth_write_hwaddr(struct udevice *dev)
 {
-	struct eth_pdata *pdata = dev_get_platdata(dev);
+	struct eth_pdata *pdata = dev_get_plat(dev);
 	struct mtk_eth_priv *priv = dev_get_priv(dev);
 	unsigned char *mac = pdata->enetaddr;
 	u32 macaddr_lsb, macaddr_msb;
@@ -1357,7 +1358,7 @@ static int mtk_eth_free_pkt(struct udevice *dev, uchar *packet, int length)
 
 static int mtk_eth_probe(struct udevice *dev)
 {
-	struct eth_pdata *pdata = dev_get_platdata(dev);
+	struct eth_pdata *pdata = dev_get_plat(dev);
 	struct mtk_eth_priv *priv = dev_get_priv(dev);
 	ulong iobase = pdata->iobase;
 	int ret;
@@ -1406,9 +1407,9 @@ static int mtk_eth_remove(struct udevice *dev)
 	return 0;
 }
 
-static int mtk_eth_ofdata_to_platdata(struct udevice *dev)
+static int mtk_eth_of_to_plat(struct udevice *dev)
 {
-	struct eth_pdata *pdata = dev_get_platdata(dev);
+	struct eth_pdata *pdata = dev_get_plat(dev);
 	struct mtk_eth_priv *priv = dev_get_priv(dev);
 	struct ofnode_phandle_args args;
 	struct regmap *regmap;
@@ -1418,7 +1419,7 @@ static int mtk_eth_ofdata_to_platdata(struct udevice *dev)
 
 	priv->soc = dev_get_driver_data(dev);
 
-	pdata->iobase = devfdt_get_addr(dev);
+	pdata->iobase = dev_read_addr(dev);
 
 	/* get corresponding ethsys phandle */
 	ret = dev_read_phandle_with_args(dev, "mediatek,ethsys", NULL, 0, 0,
@@ -1557,11 +1558,11 @@ U_BOOT_DRIVER(mtk_eth) = {
 	.name = "mtk-eth",
 	.id = UCLASS_ETH,
 	.of_match = mtk_eth_ids,
-	.ofdata_to_platdata = mtk_eth_ofdata_to_platdata,
-	.platdata_auto_alloc_size = sizeof(struct eth_pdata),
+	.of_to_plat = mtk_eth_of_to_plat,
+	.plat_auto	= sizeof(struct eth_pdata),
 	.probe = mtk_eth_probe,
 	.remove = mtk_eth_remove,
 	.ops = &mtk_eth_ops,
-	.priv_auto_alloc_size = sizeof(struct mtk_eth_priv),
+	.priv_auto	= sizeof(struct mtk_eth_priv),
 	.flags = DM_FLAG_ALLOC_PRIV_DMA,
 };

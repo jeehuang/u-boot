@@ -16,6 +16,7 @@
 #include <malloc.h>
 #include <nand.h>
 #include <asm/byteorder.h>
+#include <asm/global_data.h>
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <u-boot/zlib.h>
@@ -111,7 +112,7 @@ int do_bootm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	if (argc > 0) {
 		char *endp;
 
-		simple_strtoul(argv[0], &endp, 16);
+		hextoul(argv[0], &endp);
 		/* endp pointing to NULL means that argv[0] was just a
 		 * valid number, pass it along to the normal bootm processing
 		 *
@@ -185,7 +186,7 @@ static char bootm_help_text[] =
 	"\tfdt     - relocate flat device tree\n"
 #endif
 	"\tcmdline - OS specific command line processing/setup\n"
-	"\tbdt     - OS specific bd_t processing\n"
+	"\tbdt     - OS specific bd_info processing\n"
 	"\tprep    - OS specific prep before relocation or go\n"
 #if defined(CONFIG_TRACE)
 	"\tfake    - OS specific fake start without go\n"
@@ -239,7 +240,7 @@ static int do_iminfo(struct cmd_tbl *cmdtp, int flag, int argc,
 	}
 
 	for (arg = 1; arg < argc; ++arg) {
-		addr = simple_strtoul(argv[arg], NULL, 16);
+		addr = hextoul(argv[arg], NULL);
 		if (image_info(addr) != 0)
 			rcode = 1;
 	}
@@ -291,7 +292,7 @@ static int image_info(ulong addr)
 	case IMAGE_FORMAT_FIT:
 		puts("   FIT image found\n");
 
-		if (!fit_check_format(hdr)) {
+		if (fit_check_format(hdr, IMAGE_SIZE_INVAL)) {
 			puts("Bad FIT image format!\n");
 			unmap_sysmem(hdr);
 			return 1;
@@ -368,7 +369,7 @@ static int do_imls_nor(void)
 #endif
 #if defined(CONFIG_FIT)
 			case IMAGE_FORMAT_FIT:
-				if (!fit_check_format(hdr))
+				if (fit_check_format(hdr, IMAGE_SIZE_INVAL))
 					goto next_sector;
 
 				printf("FIT Image at %08lX:\n", (ulong)hdr);
@@ -448,7 +449,7 @@ static int nand_imls_fitimage(struct mtd_info *mtd, int nand_dev, loff_t off,
 		return ret;
 	}
 
-	if (!fit_check_format(imgdata)) {
+	if (fit_check_format(imgdata, IMAGE_SIZE_INVAL)) {
 		free(imgdata);
 		return 0;
 	}

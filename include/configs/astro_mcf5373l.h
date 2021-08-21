@@ -38,7 +38,6 @@
 #error No card type defined!
 #endif
 
-/* Command line configuration */
 /*
  * CONFIG_RAM defines if u-boot is loaded via BDM (or started from
  * a different bootloader that has already performed RAM setup) or
@@ -59,7 +58,7 @@
 #define CONFIG_MCFTMR
 
 /* I2C */
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_FSL
 #define CONFIG_SYS_FSL_I2C_SPEED	80000
 #define CONFIG_SYS_FSL_I2C_SLAVE	0x7F

@@ -9,6 +9,8 @@
  * Author: Mugunthan V N <mugunthanvnm@ti.com>
  */
 
+#define LOG_CATEGORY UCLASS_DMA
+
 #include <common.h>
 #include <cpu_func.h>
 #include <dm.h>
@@ -219,8 +221,8 @@ int dma_get_device(u32 transfer_type, struct udevice **devp)
 	}
 
 	if (!dev) {
-		pr_err("No DMA device found that supports %x type\n",
-		      transfer_type);
+		pr_debug("No DMA device found that supports %x type\n",
+			 transfer_type);
 		return -EPROTONOSUPPORT;
 	}
 
@@ -254,5 +256,5 @@ UCLASS_DRIVER(dma) = {
 	.id		= UCLASS_DMA,
 	.name		= "dma",
 	.flags		= DM_UC_FLAG_SEQ_ALIAS,
-	.per_device_auto_alloc_size = sizeof(struct dma_dev_priv),
+	.per_device_auto	= sizeof(struct dma_dev_priv),
 };

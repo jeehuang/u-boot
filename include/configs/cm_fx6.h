@@ -32,7 +32,6 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* Serial console */
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART4_BASE
 #define CONFIG_SYS_BAUDRATE_TABLE	{9600, 19200, 38400, 57600, 115200}
 
@@ -49,8 +48,8 @@
 	"scriptaddr=" __stringify(CONFIG_LOADADDR) "\0" \
 	"fdtfile=undefined\0" \
 	"stdin=serial,usbkbd\0" \
-	"stdout=serial,vga\0" \
-	"stderr=serial,vga\0" \
+	"stdout=serial,vidconsole\0" \
+	"stderr=serial,vidconsole\0" \
 	"panel=HDMI\0" \
 	"autoload=no\0" \
 	"uImage=uImage-cm-fx6\0" \
@@ -151,13 +150,6 @@
 /* APBH DMA is required for NAND support */
 #endif
 
-/* SPI Flash Configs */
-#if defined(CONFIG_SPL_BUILD)
-#undef CONFIG_DM_SPI
-#undef CONFIG_DM_SPI_FLASH
-#undef CONFIG_SPI_FLASH_MTD
-#endif
-
 /* Ethernet */
 #define CONFIG_FEC_MXC
 #define CONFIG_FEC_MXC_PHYADDR		0
@@ -174,7 +166,7 @@
 #define CONFIG_EHCI_HCD_INIT_AFTER_RESET	/* For OTG port */
 
 /* I2C */
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
 #define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
@@ -204,10 +196,6 @@
 
 /* Display */
 #define CONFIG_IMX_HDMI
-
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_SPLASH_SOURCE
-#define CONFIG_VIDEO_BMP_RLE8
 
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_VIDEO_BMP_LOGO

@@ -15,6 +15,7 @@
 #include <asm/arch/sys_proto.h>
 #include <env.h>
 #include <fdt_support.h>
+#include <asm/global_data.h>
 #include <linux/errno.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
@@ -117,7 +118,7 @@ int board_mmc_getwp(struct mmc *mmc)
 	return ret;
 }
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	imx_iomux_v3_setup_multiple_pads(tqma6_usdhc3_pads,
 					 ARRAY_SIZE(tqma6_usdhc3_pads));
@@ -170,7 +171,7 @@ int board_spi_cs_gpio(unsigned bus, unsigned cs)
 #endif
 #endif
 
-#ifdef CONFIG_SYS_I2C
+#ifdef CONFIG_SYS_I2C_LEGACY
 static struct i2c_pads_info tqma6_i2c3_pads = {
 	/* I2C3: on board LM75, M24C64,  */
 	.scl = {
@@ -215,7 +216,7 @@ int board_init(void)
 #ifndef CONFIG_DM_SPI
 	tqma6_iomuxc_spi();
 #endif
-#ifdef CONFIG_SYS_I2C
+#ifdef CONFIG_SYS_I2C_LEGACY
 	tqma6_setup_i2c();
 #endif
 
@@ -286,7 +287,7 @@ int checkboard(void)
  */
 #if defined(CONFIG_OF_BOARD_SETUP) && defined(CONFIG_OF_LIBFDT)
 #define MODELSTRLEN 32u
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	char modelstr[MODELSTRLEN];
 

@@ -143,18 +143,12 @@
 
 #define CONFIG_SYS_FSL_USDHC_NUM	1
 
-#define CONFIG_SYS_MMC_ENV_DEV		0
-#define CONFIG_SYS_MMC_ENV_PART		0
-
 
 #define CONFIG_MXC_USB_PORTSC		(PORT_PTS_UTMI | PORT_PTS_PTW)
-
-#define CONFIG_IMX_THERMAL
 
 #define CONFIG_USBD_HS
 
 /* USB Device Firmware Update support */
-#define CONFIG_SYS_DFU_DATA_BUF_SIZE	SZ_16M
 #define DFU_DEFAULT_POLL_TIMEOUT	300
 
 #define CONFIG_USBNET_DEV_ADDR		"de:ad:be:af:00:01"

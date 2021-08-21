@@ -17,21 +17,13 @@
 /* Fixup settings */
 
 /* SPL settings */
-#undef CONFIG_SPL_ETH_SUPPORT
+#undef CONFIG_SPL_ETH
 #undef CONFIG_SPL_MAX_FOOTPRINT
 #define CONFIG_SPL_MAX_FOOTPRINT	CONFIG_SYS_SPI_U_BOOT_OFFS
 #define CONFIG_SPL_FS_LOAD_PAYLOAD_NAME     "u-boot.img"
 
-/* sspi command isn't useful */
-#undef CONFIG_CMD_SPI
-
-/* No useful gpio */
-#undef CONFIG_ZYNQ_GPIO
-#undef CONFIG_CMD_GPIO
-
 /* No falcon support */
 #undef CONFIG_SPL_OS_BOOT
-#undef CONFIG_SPL_FPGA_SUPPORT
 
 /* FPGA commands that we don't use */
 
@@ -42,7 +34,7 @@
 
 /* Setup proper boot sequences for Miami boards */
 
-#if defined(CONFIG_USB)
+#if defined(CONFIG_USB_HOST)
 # define EXTRA_ENV_USB \
 	"usbreset=i2c dev 1 && i2c mw 41 1 ff && i2c mw 41 3 fe && "\
 		"i2c mw 41 1 fe && i2c mw 41 1 ff\0" \
@@ -57,7 +49,6 @@
 			"${devicetree_addr}; " \
 	"fi\0"
   /* Note that addresses here should match the addresses in the env */
-# undef DFU_ALT_INFO
 # define DFU_ALT_INFO \
 	"dfu_alt_info=" \
 	"uImage ram 0x2080000 0x500000;" \

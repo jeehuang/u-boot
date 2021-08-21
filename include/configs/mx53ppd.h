@@ -20,7 +20,6 @@
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(10 * 1024 * 1024)
 
-#define CONFIG_BOARD_LATE_INIT
 #define CONFIG_REVISION_TAG
 
 /* USB Configs */
@@ -31,10 +30,6 @@
 #define CONFIG_MXC_USB_PORT	1
 #define CONFIG_MXC_USB_PORTSC	(PORT_PTS_UTMI | PORT_PTS_PTW)
 #define CONFIG_MXC_USB_FLAGS	0
-
-/* allow to overwrite serial and ethaddr */
-#define CONFIG_ENV_OVERWRITE
-#define CONFIG_BAUDRATE			115200
 
 /* Command definition */
 
@@ -69,23 +64,25 @@
 		"vt.global_cursor_default=0 bootcause=${bootcause} ${quiet}\0" \
 	"bootargs_emmc=setenv bootargs root=/dev/${rootdev}${partnum} ro " \
 		"rootwait ${bootargs}\0" \
-	"doquiet=if ext2load ${dev} ${devnum}:5 0x7000A000 /boot/console; " \
-		"then setenv quiet; fi\0" \
+	"doquiet=" \
+		"if ext2load ${dev} ${devnum}:5 0x7000A000 /boot/console; " \
+			"then setenv quiet; fi\0" \
 	"hasfirstboot=" \
 		"test -e ${dev} ${devnum}:${partnum} /boot/bootcause/firstboot\0" \
-	"swappartitions=setexpr partnum 3 - ${partnum}\0" \
+	"swappartitions=" \
+		"setexpr partnum 3 - ${partnum}\0" \
 	"failbootcmd=" \
 		"cls; " \
 		"setcurs 5 4; " \
 		"lcdputs \"Monitor failed to start. " \
 		"Try again, or contact GE Service for support.\"; " \
-		"bootcount reset; \0" \
+		"bootcount reset; " \
+		"while true; do sleep 1; done; \0" \
 	"altbootcmd=" \
 		"run doquiet; " \
 		"setenv partnum 1; run hasfirstboot || setenv partnum 2; " \
 		"run hasfirstboot || setenv partnum 0; " \
 		"if test ${partnum} != 0; then " \
-			"setenv bootcause REVERT; " \
 			"run swappartitions loadimage doboot; " \
 		"fi; " \
 		"run failbootcmd\0" \
@@ -106,10 +103,8 @@
 		"lcd:800x480-24@60,monitor=lcd\0" \
 
 #define CONFIG_MMCBOOTCOMMAND \
-	"if mmc dev ${devnum}; then " \
-		"run doquiet; " \
-		"run tryboot; " \
-	"fi; " \
+	"run doquiet; " \
+	"run tryboot; " \
 
 #define CONFIG_BOOTCOMMAND CONFIG_MMCBOOTCOMMAND
 
@@ -142,12 +137,8 @@
 	(CONFIG_SYS_INIT_RAM_ADDR + CONFIG_SYS_INIT_SP_OFFSET)
 
 /* FLASH and environment organization */
-#define CONFIG_SYS_MMC_ENV_DEV 0
 
-#define CONFIG_CMD_FUSE
 #define CONFIG_FSL_IIM
-
-#define CONFIG_BCH
 
 /* Backlight Control */
 #define CONFIG_IMX6_PWM_PER_CLK 66666000

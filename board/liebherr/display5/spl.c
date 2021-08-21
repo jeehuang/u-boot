@@ -12,6 +12,7 @@
 #include <log.h>
 #include <serial.h>
 #include <spl.h>
+#include <asm/global_data.h>
 #include <linux/delay.h>
 #include <linux/libfdt.h>
 #include <asm/io.h>
@@ -288,7 +289,7 @@ static struct fsl_esdhc_cfg usdhc_cfg = {
 	.max_bus_width = 8,
 };
 
-int board_mmc_init(bd_t *bd)
+int board_mmc_init(struct bd_info *bd)
 {
 	displ5_set_iomux_usdhc_spl();
 
@@ -375,7 +376,7 @@ void board_boot_order(u32 *spl_boot_list)
 #endif
 }
 
-void reset_cpu(ulong addr) {}
+void reset_cpu(void) {}
 
 #ifdef CONFIG_SPL_LOAD_FIT
 int board_fit_config_name_match(const char *name)

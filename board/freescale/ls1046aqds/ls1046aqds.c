@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2016 Freescale Semiconductor, Inc.
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  */
 
 #include <common.h>
@@ -9,6 +9,7 @@
 #include <fdt_support.h>
 #include <fsl_ddr_sdram.h>
 #include <init.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/fsl_serdes.h>
@@ -28,12 +29,17 @@
 #include <fsl_ifc.h>
 #include <fsl_sec.h>
 #include <spl.h>
+#include "../common/i2c_mux.h"
 
 #include "../common/vid.h"
 #include "../common/qixis.h"
 #include "ls1046aqds_qixis.h"
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#ifdef CONFIG_SYS_I2C_EARLY_INIT
+void i2c_early_init_f(void);
+#endif
 
 #ifdef CONFIG_TFABOOT
 struct ifc_regs ifc_cfg_nor_boot[CONFIG_SYS_FSL_IFC_BANK_COUNT] = {
@@ -271,31 +277,6 @@ u32 get_lpuart_clk(void)
 }
 #endif
 
-int select_i2c_ch_pca9547(u8 ch, int bus_num)
-{
-	int ret;
-#ifdef CONFIG_DM_I2C
-	struct udevice *dev;
-
-	ret = i2c_get_chip_for_busnum(bus_num, I2C_MUX_PCA_ADDR_PRI,
-				      1, &dev);
-	if (ret) {
-		printf("%s: Cannot find udev for a bus %d\n", __func__,
-		       bus_num);
-		return ret;
-	}
-	ret = dm_i2c_write(dev, 0, &ch, 1);
-#else
-	ret = i2c_write(I2C_MUX_PCA_ADDR_PRI, 0, 1, &ch, 1);
-#endif
-	if (ret) {
-		puts("PCA: failed to select proper channel\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 int dram_init(void)
 {
 	/*
@@ -323,6 +304,7 @@ int i2c_multiplexer_select_vid_channel(u8 channel)
 
 int board_early_init_f(void)
 {
+	u32 __iomem *cntcr = (u32 *)CONFIG_SYS_FSL_TIMER_ADDR;
 #ifdef CONFIG_HAS_FSL_XHCI_USB
 	struct ccsr_scfg *scfg = (struct ccsr_scfg *)CONFIG_SYS_FSL_SCFG_ADDR;
 	u32 usb_pwrfault;
@@ -331,10 +313,13 @@ int board_early_init_f(void)
 	u8 uart;
 #endif
 
-#ifdef CONFIG_SYS_I2C
+	/*
+	 * Enable secure system counter for timer
+	 */
+	out_le32(cntcr, 0x1);
+
 #ifdef CONFIG_SYS_I2C_EARLY_INIT
 	i2c_early_init_f();
-#endif
 #endif
 	fsl_lsch2_early_init_f();
 
@@ -447,7 +432,7 @@ int board_init(void)
 }
 
 #ifdef CONFIG_OF_BOARD_SETUP
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	u64 base[CONFIG_NR_DRAM_BANKS];
 	u64 size[CONFIG_NR_DRAM_BANKS];

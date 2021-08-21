@@ -12,6 +12,7 @@
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/mx6-pins.h>
+#include <asm/global_data.h>
 #include <asm/mach-imx/spi.h>
 #include <env.h>
 #include <linux/errno.h>
@@ -250,7 +251,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return ret;
 }
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	struct src *psrc = (struct src *)SRC_BASE_ADDR;
 	unsigned reg = readl(&psrc->sbmr1) >> 11;
@@ -572,12 +573,6 @@ int board_late_init(void)
 		env_set("board_rev", "MX6DL");
 #endif
 
-	return 0;
-}
-
-int checkboard(void)
-{
-	puts("Board: MX6-SabreSD\n");
 	return 0;
 }
 

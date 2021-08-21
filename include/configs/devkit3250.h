@@ -31,11 +31,6 @@
 					 - GENERATED_GBL_DATA_SIZE)
 
 /*
- * Serial Driver
- */
-#define CONFIG_SYS_LPC32XX_UART		5   /* UART5 */
-
-/*
  * DMA
  */
 #if !defined(CONFIG_SPL_BUILD)
@@ -45,8 +40,7 @@
 /*
  * I2C
  */
-#define CONFIG_SYS_I2C
-#define CONFIG_SYS_I2C_LPC32XX
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_SPEED		100000
 
 /*
@@ -154,9 +148,7 @@
 
 /* SPL loads an image from NAND */
 #define CONFIG_SPL_NAND_RAW_ONLY
-#define CONFIG_SPL_NAND_DRIVERS
 
-#define CONFIG_SPL_NAND_ECC
 #define CONFIG_SPL_NAND_SOFTECC
 
 #define CONFIG_SPL_MAX_SIZE		0x20000

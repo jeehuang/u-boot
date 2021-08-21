@@ -8,6 +8,8 @@
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  */
 
+#define LOG_CATEGORY LOGC_BOOT
+
 #ifdef USE_HOSTCC
 #include "mkimage.h"
 #include <time.h>
@@ -15,23 +17,26 @@
 #include <u-boot/crc.h>
 #else
 #include <linux/compiler.h>
-#include <linux/kconfig.h>
+#include <linux/sizes.h>
 #include <common.h>
 #include <errno.h>
 #include <log.h>
 #include <mapmem.h>
 #include <asm/io.h>
 #include <malloc.h>
+#include <asm/global_data.h>
 DECLARE_GLOBAL_DATA_PTR;
 #endif /* !USE_HOSTCC*/
 
 #include <bootm.h>
 #include <image.h>
 #include <bootstage.h>
+#include <linux/kconfig.h>
 #include <u-boot/crc.h>
 #include <u-boot/md5.h>
 #include <u-boot/sha1.h>
 #include <u-boot/sha256.h>
+#include <u-boot/sha512.h>
 
 /*****************************************************************************/
 /* New uImage format routines */
@@ -48,7 +53,7 @@ static int fit_parse_spec(const char *spec, char sepc, ulong addr_curr,
 	sep = strchr(spec, sepc);
 	if (sep) {
 		if (sep - spec > 0)
-			*addr = simple_strtoul(spec, NULL, 16);
+			*addr = hextoul(spec, NULL);
 
 		*name = sep + 1;
 		return 1;
@@ -111,6 +116,21 @@ int fit_parse_subimage(const char *spec, ulong addr_curr,
 }
 #endif /* !USE_HOSTCC */
 
+#ifdef USE_HOSTCC
+/* Host tools use these implementations for Cipher and Signature support */
+static void *host_blob;
+
+void image_set_host_blob(void *blob)
+{
+	host_blob = blob;
+}
+
+void *image_get_host_blob(void)
+{
+	return host_blob;
+}
+#endif /* USE_HOSTCC */
+
 static void fit_get_debug(const void *fit, int noffset,
 		char *prop_name, int err)
 {
@@ -146,7 +166,7 @@ int fit_get_subimage_count(const void *fit, int images_noffset)
 	return count;
 }
 
-#if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_FIT_PRINT)
+#if CONFIG_IS_ENABLED(FIT_PRINT) || CONFIG_IS_ENABLED(SPL_FIT_PRINT)
 /**
  * fit_image_print_data() - prints out the hash node details
  * @fit: pointer to the FIT format image header
@@ -485,16 +505,16 @@ void fit_image_print(const void *fit, int image_noffset, const char *p)
 
 	ret = fit_image_get_data_and_size(fit, image_noffset, &data, &size);
 
-#ifndef USE_HOSTCC
-	printf("%s  Data Start:   ", p);
-	if (ret) {
-		printf("unavailable\n");
-	} else {
-		void *vdata = (void *)data;
+	if (!host_build()) {
+		printf("%s  Data Start:   ", p);
+		if (ret) {
+			printf("unavailable\n");
+		} else {
+			void *vdata = (void *)data;
 
-		printf("0x%08lx\n", (ulong)map_to_sysmem(vdata));
+			printf("0x%08lx\n", (ulong)map_to_sysmem(vdata));
+		}
 	}
-#endif
 
 	printf("%s  Data Size:    ", p);
 	if (ret)
@@ -554,7 +574,7 @@ void fit_image_print(const void *fit, int image_noffset, const char *p)
 #else
 void fit_print_contents(const void *fit) { }
 void fit_image_print(const void *fit, int image_noffset, const char *p) { }
-#endif /* !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_FIT_PRINT) */
+#endif /* CONFIG_IS_ENABLED(FIR_PRINT) || CONFIG_IS_ENABLED(SPL_FIT_PRINT) */
 
 /**
  * fit_get_desc - get node description property
@@ -790,17 +810,18 @@ static int fit_image_get_address(const void *fit, int noffset, char *name,
 		return -1;
 	}
 
-	if (len > sizeof(ulong)) {
-		printf("Unsupported %s address size\n", name);
-		return -1;
-	}
-
 	cell_len = len >> 2;
 	/* Use load64 to avoid compiling warning for 32-bit target */
 	while (cell_len--) {
 		load64 = (load64 << 32) | uimage_to_cpu(*cell);
 		cell++;
 	}
+
+	if (len > sizeof(ulong) && (uint32_t)(load64 >> 32)) {
+		printf("Unsupported %s address size\n", name);
+		return -1;
+	}
+
 	*load = (ulong)load64;
 
 	return 0;
@@ -1198,14 +1219,22 @@ int calculate_hash(const void *data, int data_len, const char *algo,
 							CHUNKSZ_CRC32);
 		*((uint32_t *)value) = cpu_to_uimage(*((uint32_t *)value));
 		*value_len = 4;
-	} else if (IMAGE_ENABLE_SHA1 && strcmp(algo, "sha1") == 0) {
+	} else if (CONFIG_IS_ENABLED(SHA1) && strcmp(algo, "sha1") == 0) {
 		sha1_csum_wd((unsigned char *)data, data_len,
 			     (unsigned char *)value, CHUNKSZ_SHA1);
 		*value_len = 20;
-	} else if (IMAGE_ENABLE_SHA256 && strcmp(algo, "sha256") == 0) {
+	} else if (CONFIG_IS_ENABLED(SHA256) && strcmp(algo, "sha256") == 0) {
 		sha256_csum_wd((unsigned char *)data, data_len,
 			       (unsigned char *)value, CHUNKSZ_SHA256);
 		*value_len = SHA256_SUM_LEN;
+	} else if (CONFIG_IS_ENABLED(SHA384) && strcmp(algo, "sha384") == 0) {
+		sha384_csum_wd((unsigned char *)data, data_len,
+			       (unsigned char *)value, CHUNKSZ_SHA384);
+		*value_len = SHA384_SUM_LEN;
+	} else if (CONFIG_IS_ENABLED(SHA512) && strcmp(algo, "sha512") == 0) {
+		sha512_csum_wd((unsigned char *)data, data_len,
+			       (unsigned char *)value, CHUNKSZ_SHA512);
+		*value_len = SHA512_SUM_LEN;
 	} else if (IMAGE_ENABLE_MD5 && strcmp(algo, "md5") == 0) {
 		md5_wd((unsigned char *)data, data_len, value, CHUNKSZ_MD5);
 		*value_len = 16;
@@ -1343,21 +1372,31 @@ error:
  */
 int fit_image_verify(const void *fit, int image_noffset)
 {
+	const char *name = fit_get_name(fit, image_noffset, NULL);
 	const void	*data;
 	size_t		size;
-	int		noffset = 0;
 	char		*err_msg = "";
 
+	if (IS_ENABLED(CONFIG_FIT_SIGNATURE) && strchr(name, '@')) {
+		/*
+		 * We don't support this since libfdt considers names with the
+		 * name root but different @ suffix to be equal
+		 */
+		err_msg = "Node name contains @";
+		goto err;
+	}
 	/* Get image data and data length */
 	if (fit_image_get_data_and_size(fit, image_noffset, &data, &size)) {
 		err_msg = "Can't get image data/size";
-		printf("error!\n%s for '%s' hash node in '%s' image node\n",
-		       err_msg, fit_get_name(fit, noffset, NULL),
-		       fit_get_name(fit, image_noffset, NULL));
-		return 0;
+		goto err;
 	}
 
 	return fit_image_verify_with_data(fit, image_noffset, data, size);
+
+err:
+	printf("error!\n%s in '%s' image node\n", err_msg,
+	       fit_get_name(fit, image_noffset, NULL));
+	return 0;
 }
 
 /**
@@ -1410,7 +1449,6 @@ int fit_all_image_verify(const void *fit)
 	return 1;
 }
 
-#ifdef CONFIG_FIT_CIPHER
 static int fit_image_uncipher(const void *fit, int image_noffset,
 			      void **data, size_t *size)
 {
@@ -1434,7 +1472,6 @@ static int fit_image_uncipher(const void *fit, int image_noffset,
  out:
 	return ret;
 }
-#endif /* CONFIG_FIT_CIPHER */
 
 /**
  * fit_image_check_os - check whether image node is of a given os type
@@ -1476,9 +1513,12 @@ int fit_image_check_arch(const void *fit, int noffset, uint8_t arch)
 	uint8_t image_arch;
 	int aarch32_support = 0;
 
-#ifdef CONFIG_ARM64_SUPPORT_AARCH32
-	aarch32_support = 1;
-#endif
+	/* Let's assume that sandbox can load any architecture */
+	if (IS_ENABLED(CONFIG_SANDBOX))
+		return true;
+
+	if (IS_ENABLED(CONFIG_ARM64_SUPPORT_AARCH32))
+		aarch32_support = 1;
 
 	if (fit_image_get_arch(fit, noffset, &image_arch))
 		return 0;
@@ -1534,41 +1574,100 @@ int fit_image_check_comp(const void *fit, int noffset, uint8_t comp)
 }
 
 /**
- * fit_check_format - sanity check FIT image format
- * @fit: pointer to the FIT format image header
+ * fdt_check_no_at() - Check for nodes whose names contain '@'
  *
- * fit_check_format() runs a basic sanity FIT image verification.
- * Routine checks for mandatory properties, nodes, etc.
+ * This checks the parent node and all subnodes recursively
  *
- * returns:
- *     1, on success
- *     0, on failure
+ * @fit: FIT to check
+ * @parent: Parent node to check
+ * @return 0 if OK, -EADDRNOTAVAIL is a node has a name containing '@'
  */
-int fit_check_format(const void *fit)
+static int fdt_check_no_at(const void *fit, int parent)
 {
+	const char *name;
+	int node;
+	int ret;
+
+	name = fdt_get_name(fit, parent, NULL);
+	if (!name || strchr(name, '@'))
+		return -EADDRNOTAVAIL;
+
+	fdt_for_each_subnode(node, fit, parent) {
+		ret = fdt_check_no_at(fit, node);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int fit_check_format(const void *fit, ulong size)
+{
+	int ret;
+
+	/* A FIT image must be a valid FDT */
+	ret = fdt_check_header(fit);
+	if (ret) {
+		log_debug("Wrong FIT format: not a flattened device tree (err=%d)\n",
+			  ret);
+		return -ENOEXEC;
+	}
+
+	if (CONFIG_IS_ENABLED(FIT_FULL_CHECK)) {
+		/*
+		 * If we are not given the size, make do wtih calculating it.
+		 * This is not as secure, so we should consider a flag to
+		 * control this.
+		 */
+		if (size == IMAGE_SIZE_INVAL)
+			size = fdt_totalsize(fit);
+		ret = fdt_check_full(fit, size);
+		if (ret)
+			ret = -EINVAL;
+
+		/*
+		 * U-Boot stopped using unit addressed in 2017. Since libfdt
+		 * can match nodes ignoring any unit address, signature
+		 * verification can see the wrong node if one is inserted with
+		 * the same name as a valid node but with a unit address
+		 * attached. Protect against this by disallowing unit addresses.
+		 */
+		if (!ret && CONFIG_IS_ENABLED(FIT_SIGNATURE)) {
+			ret = fdt_check_no_at(fit, 0);
+
+			if (ret) {
+				log_debug("FIT check error %d\n", ret);
+				return ret;
+			}
+		}
+		if (ret) {
+			log_debug("FIT check error %d\n", ret);
+			return ret;
+		}
+	}
+
 	/* mandatory / node 'description' property */
-	if (fdt_getprop(fit, 0, FIT_DESC_PROP, NULL) == NULL) {
-		debug("Wrong FIT format: no description\n");
-		return 0;
+	if (!fdt_getprop(fit, 0, FIT_DESC_PROP, NULL)) {
+		log_debug("Wrong FIT format: no description\n");
+		return -ENOMSG;
 	}
 
 	if (IMAGE_ENABLE_TIMESTAMP) {
 		/* mandatory / node 'timestamp' property */
-		if (fdt_getprop(fit, 0, FIT_TIMESTAMP_PROP, NULL) == NULL) {
-			debug("Wrong FIT format: no timestamp\n");
-			return 0;
+		if (!fdt_getprop(fit, 0, FIT_TIMESTAMP_PROP, NULL)) {
+			log_debug("Wrong FIT format: no timestamp\n");
+			return -EBADMSG;
 		}
 	}
 
 	/* mandatory subimages parent '/images' node */
 	if (fdt_path_offset(fit, FIT_IMAGES_PATH) < 0) {
-		debug("Wrong FIT format: no images parent node\n");
-		return 0;
+		log_debug("Wrong FIT format: no images parent node\n");
+		return -ENOENT;
 	}
 
-	return 1;
+	return 0;
 }
-
 
 /**
  * fit_conf_find_compat
@@ -1678,7 +1777,8 @@ int fit_conf_find_compat(const void *fit, const void *fdt)
 			}
 
 			/* search in this config's kernel FDT */
-			if (fit_image_get_data(fit, kfdt_noffset, &fdt, &sz)) {
+			if (fit_image_get_data_and_size(fit, kfdt_noffset,
+							&fdt, &sz)) {
 				debug("Failed to get fdt \"%s\".\n", kfdt_name);
 				continue;
 			}
@@ -1731,12 +1831,19 @@ int fit_conf_get_node(const void *fit, const char *conf_uname)
 	if (conf_uname == NULL) {
 		/* get configuration unit name from the default property */
 		debug("No configuration specified, trying default...\n");
-		conf_uname = (char *)fdt_getprop(fit, confs_noffset,
-						 FIT_DEFAULT_PROP, &len);
-		if (conf_uname == NULL) {
-			fit_get_debug(fit, confs_noffset, FIT_DEFAULT_PROP,
-				      len);
-			return len;
+		if (!host_build() && IS_ENABLED(CONFIG_MULTI_DTB_FIT)) {
+			noffset = fit_find_config_node(fit);
+			if (noffset < 0)
+				return noffset;
+			conf_uname = fdt_get_name(fit, noffset, NULL);
+		} else {
+			conf_uname = (char *)fdt_getprop(fit, confs_noffset,
+							 FIT_DEFAULT_PROP, &len);
+			if (conf_uname == NULL) {
+				fit_get_debug(fit, confs_noffset, FIT_DEFAULT_PROP,
+					      len);
+				return len;
+			}
 		}
 		debug("Found default configuration: '%s'\n", conf_uname);
 	}
@@ -1854,6 +1961,8 @@ static const char *fit_get_image_type_property(int type)
 		return FIT_FDT_PROP;
 	case IH_TYPE_KERNEL:
 		return FIT_KERNEL_PROP;
+	case IH_TYPE_FIRMWARE:
+		return FIT_FIRMWARE_PROP;
 	case IH_TYPE_RAMDISK:
 		return FIT_RAMDISK_PROP;
 	case IH_TYPE_X86_SETUP:
@@ -1899,10 +2008,13 @@ int fit_image_load(bootm_headers_t *images, ulong addr,
 	printf("## Loading %s from FIT Image at %08lx ...\n", prop_name, addr);
 
 	bootstage_mark(bootstage_id + BOOTSTAGE_SUB_FORMAT);
-	if (!fit_check_format(fit)) {
-		printf("Bad FIT %s image format!\n", prop_name);
+	ret = fit_check_format(fit, IMAGE_SIZE_INVAL);
+	if (ret) {
+		printf("Bad FIT %s image format! (err=%d)\n", prop_name, ret);
+		if (CONFIG_IS_ENABLED(FIT_SIGNATURE) && ret == -EADDRNOTAVAIL)
+			printf("Signature checking prevents use of unit addresses (@) in nodes\n");
 		bootstage_error(bootstage_id + BOOTSTAGE_SUB_FORMAT);
-		return -ENOEXEC;
+		return ret;
 	}
 	bootstage_mark(bootstage_id + BOOTSTAGE_SUB_FORMAT_OK);
 	if (fit_uname) {
@@ -1916,7 +2028,7 @@ int fit_image_load(bootm_headers_t *images, ulong addr,
 		 * fit_conf_get_node() will try to find default config node
 		 */
 		bootstage_mark(bootstage_id + BOOTSTAGE_SUB_NO_UNIT_NAME);
-		if (IMAGE_ENABLE_BEST_MATCH && !fit_uname_config) {
+		if (IS_ENABLED(CONFIG_FIT_BEST_MATCH) && !fit_uname_config) {
 			cfg_noffset = fit_conf_find_compat(fit, gd_fdt_blob());
 		} else {
 			cfg_noffset = fit_conf_get_node(fit,
@@ -1967,13 +2079,13 @@ int fit_image_load(bootm_headers_t *images, ulong addr,
 	}
 
 	bootstage_mark(bootstage_id + BOOTSTAGE_SUB_CHECK_ARCH);
-#if !defined(USE_HOSTCC) && !defined(CONFIG_SANDBOX)
-	if (!fit_image_check_target_arch(fit, noffset)) {
-		puts("Unsupported Architecture\n");
-		bootstage_error(bootstage_id + BOOTSTAGE_SUB_CHECK_ARCH);
-		return -ENOEXEC;
+	if (!host_build() && IS_ENABLED(CONFIG_SANDBOX)) {
+		if (!fit_image_check_target_arch(fit, noffset)) {
+			puts("Unsupported Architecture\n");
+			bootstage_error(bootstage_id + BOOTSTAGE_SUB_CHECK_ARCH);
+			return -ENOEXEC;
+		}
 	}
-#endif
 
 #ifndef USE_HOSTCC
 	fit_image_get_arch(fit, noffset, &os_arch);
@@ -1983,6 +2095,7 @@ int fit_image_load(bootm_headers_t *images, ulong addr,
 	bootstage_mark(bootstage_id + BOOTSTAGE_SUB_CHECK_ALL);
 	type_ok = fit_image_check_type(fit, noffset, image_type) ||
 		  fit_image_check_type(fit, noffset, IH_TYPE_FIRMWARE) ||
+		  fit_image_check_type(fit, noffset, IH_TYPE_TEE) ||
 		  (image_type == IH_TYPE_KERNEL &&
 		   fit_image_check_type(fit, noffset, IH_TYPE_KERNEL_NOLOAD));
 
@@ -1990,6 +2103,7 @@ int fit_image_load(bootm_headers_t *images, ulong addr,
 		image_type == IH_TYPE_FPGA ||
 		fit_image_check_os(fit, noffset, IH_OS_LINUX) ||
 		fit_image_check_os(fit, noffset, IH_OS_U_BOOT) ||
+		fit_image_check_os(fit, noffset, IH_OS_TEE) ||
 		fit_image_check_os(fit, noffset, IH_OS_OPENRTOS) ||
 		fit_image_check_os(fit, noffset, IH_OS_EFI) ||
 		fit_image_check_os(fit, noffset, IH_OS_VXWORKS);
@@ -2019,9 +2133,8 @@ int fit_image_load(bootm_headers_t *images, ulong addr,
 		return -ENOENT;
 	}
 
-#ifdef CONFIG_FIT_CIPHER
 	/* Decrypt data before uncompress/move */
-	if (IMAGE_ENABLE_DECRYPT) {
+	if (IS_ENABLED(CONFIG_FIT_CIPHER) && IMAGE_ENABLE_DECRYPT) {
 		puts("   Decrypting Data ... ");
 		if (fit_image_uncipher(fit, noffset, &buf, &size)) {
 			puts("Error\n");
@@ -2029,12 +2142,10 @@ int fit_image_load(bootm_headers_t *images, ulong addr,
 		}
 		puts("OK\n");
 	}
-#endif
 
-#if !defined(USE_HOSTCC) && defined(CONFIG_FIT_IMAGE_POST_PROCESS)
 	/* perform any post-processing on the image data */
-	board_fit_image_post_process(&buf, &size);
-#endif
+	if (!host_build() && IS_ENABLED(CONFIG_FIT_IMAGE_POST_PROCESS))
+		board_fit_image_post_process(fit, noffset, &buf, &size);
 
 	len = (ulong)size;
 
@@ -2158,10 +2269,10 @@ int boot_get_fdt_fit(bootm_headers_t *images, ulong addr,
 	ulong load, len;
 #ifdef CONFIG_OF_LIBFDT_OVERLAY
 	ulong image_start, image_end;
-	ulong ovload, ovlen;
+	ulong ovload, ovlen, ovcopylen;
 	const char *uconfig;
 	const char *uname;
-	void *base, *ov;
+	void *base, *ov, *ovcopy = NULL;
 	int i, err, noffset, ov_noffset;
 #endif
 
@@ -2251,7 +2362,7 @@ int boot_get_fdt_fit(bootm_headers_t *images, ulong addr,
 			addr, &uname, &uconfig,
 			arch, IH_TYPE_FLATDT,
 			BOOTSTAGE_ID_FIT_FDT_START,
-			FIT_LOAD_REQUIRED, &ovload, &ovlen);
+			FIT_LOAD_IGNORED, &ovload, &ovlen);
 		if (ov_noffset < 0) {
 			printf("load of %s failed\n", uname);
 			continue;
@@ -2260,6 +2371,21 @@ int boot_get_fdt_fit(bootm_headers_t *images, ulong addr,
 				uname, ovload, ovlen);
 		ov = map_sysmem(ovload, ovlen);
 
+		ovcopylen = ALIGN(fdt_totalsize(ov), SZ_4K);
+		ovcopy = malloc(ovcopylen);
+		if (!ovcopy) {
+			printf("failed to duplicate DTO before application\n");
+			fdt_noffset = -ENOMEM;
+			goto out;
+		}
+
+		err = fdt_open_into(ov, ovcopy, ovcopylen);
+		if (err < 0) {
+			printf("failed on fdt_open_into for DTO\n");
+			fdt_noffset = err;
+			goto out;
+		}
+
 		base = map_sysmem(load, len + ovlen);
 		err = fdt_open_into(base, base, len + ovlen);
 		if (err < 0) {
@@ -2267,14 +2393,18 @@ int boot_get_fdt_fit(bootm_headers_t *images, ulong addr,
 			fdt_noffset = err;
 			goto out;
 		}
+
 		/* the verbose method prints out messages on error */
-		err = fdt_overlay_apply_verbose(base, ov);
+		err = fdt_overlay_apply_verbose(base, ovcopy);
 		if (err < 0) {
 			fdt_noffset = err;
 			goto out;
 		}
 		fdt_pack(base);
 		len = fdt_totalsize(base);
+
+		free(ovcopy);
+		ovcopy = NULL;
 	}
 #else
 	printf("config with overlays but CONFIG_OF_LIBFDT_OVERLAY not set\n");
@@ -2291,6 +2421,10 @@ out:
 	if (fit_uname_configp)
 		*fit_uname_configp = fit_uname_config;
 
+#ifdef CONFIG_OF_LIBFDT_OVERLAY
+	if (ovcopy)
+		free(ovcopy);
+#endif
 	if (fit_uname_config_copy)
 		free(fit_uname_config_copy);
 	return fdt_noffset;

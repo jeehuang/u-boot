@@ -6,8 +6,8 @@
 #ifndef __DM_UTIL_H
 #define __DM_UTIL_H
 
-#ifdef CONFIG_DM_WARN
-void dm_warn(const char *fmt, ...);
+#if CONFIG_IS_ENABLED(DM_WARN)
+#define dm_warn(fmt...) log(LOGC_DM, LOGL_WARNING, ##fmt)
 #else
 static inline void dm_warn(const char *fmt, ...)
 {
@@ -42,4 +42,19 @@ static inline void dm_dump_devres(void)
 /* Dump out a list of drivers */
 void dm_dump_drivers(void);
 
+/* Dump out a list with each driver's compatibility strings */
+void dm_dump_driver_compat(void);
+
+/* Dump out a list of drivers with static platform data */
+void dm_dump_static_driver_info(void);
+
+#endif
+
+#if CONFIG_IS_ENABLED(OF_PLATDATA_INST) && CONFIG_IS_ENABLED(READ_ONLY)
+void *dm_priv_to_rw(void *priv);
+#else
+static inline void *dm_priv_to_rw(void *priv)
+{
+	return priv;
+}
 #endif

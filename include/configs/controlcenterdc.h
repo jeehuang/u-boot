@@ -13,7 +13,6 @@
 #define CONFIG_CUSTOMER_BOARD_SUPPORT
 
 #define CONFIG_SKIP_LOWLEVEL_INIT	/* disable board lowlevel_init */
-#define CONFIG_BOARD_LATE_INIT
 
 /*
  * TEXT_BASE needs to be below 16MiB, since this area is scrubbed
@@ -21,14 +20,7 @@
  * U-Boot into it.
  */
 
-#define CONFIG_SYS_TCLK		250000000	/* 250MHz */
-
 #define CONFIG_LOADADDR 		1000000
-
-/*
- * SDIO/MMC Card Configuration
- */
-#define CONFIG_SYS_MMC_BASE		MVEBU_SDIO_BASE
 
 /*
  * SATA/SCSI/AHCI configuration
@@ -89,20 +81,11 @@
 
 #define CONFIG_SPL_LIBCOMMON_SUPPORT
 #define CONFIG_SPL_LIBGENERIC_SUPPORT
-#define CONFIG_SPL_I2C_SUPPORT
-
-#if CONFIG_SPL_BOOT_DEVICE == SPL_BOOT_SPI_NOR_FLASH
-/* SPL related SPI defines */
-#define CONFIG_SYS_U_BOOT_OFFS		CONFIG_SYS_SPI_U_BOOT_OFFS
-#endif
+#define CONFIG_SPL_I2C
 
 #if CONFIG_SPL_BOOT_DEVICE == SPL_BOOT_SDIO_MMC_CARD
 /* SPL related MMC defines */
 #define CONFIG_SPL_MMC_SUPPORT
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_PARTITION 1
-#define CONFIG_SYS_MMC_U_BOOT_OFFS		(168 << 10)
-#define CONFIG_SYS_U_BOOT_OFFS			CONFIG_SYS_MMC_U_BOOT_OFFS
-#define CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR	(CONFIG_SYS_U_BOOT_OFFS / 512)
 #ifdef CONFIG_SPL_BUILD
 #define CONFIG_FIXED_SDHCI_ALIGNED_BUFFER	0x00180000	/* in SDRAM */
 #endif
@@ -111,9 +94,6 @@
 /*
  * Environment Configuration
  */
-#define CONFIG_ENV_OVERWRITE
-
-#define CONFIG_BAUDRATE 115200
 
 #define CONFIG_HOSTNAME		"ccdc"
 #define CONFIG_ROOTPATH		"/opt/nfsroot"

@@ -74,24 +74,11 @@
 #include <version.h>
 #include <malloc.h>
 #include <video.h>
+#include <asm/global_data.h>
 #include <linux/compiler.h>
 
 #if defined(CONFIG_VIDEO_MXS)
 #define VIDEO_FB_16BPP_WORD_SWAP
-#endif
-
-/*
- * Defines for the MB862xx driver
- */
-#ifdef CONFIG_VIDEO_MB862xx
-
-#ifdef CONFIG_VIDEO_CORALP
-#define VIDEO_FB_LITTLE_ENDIAN
-#endif
-#ifdef CONFIG_VIDEO_MB862xx_ACCEL
-#define VIDEO_HW_RECTFILL
-#define VIDEO_HW_BITBLT
-#endif
 #endif
 
 /*
@@ -1870,7 +1857,7 @@ static void *video_logo(void)
 		ret = splash_screen_prepare();
 		if (ret < 0)
 			return video_fb_address;
-		addr = simple_strtoul(s, NULL, 16);
+		addr = hextoul(s, NULL);
 
 		if (video_display_bitmap(addr,
 					video_logo_xpos,
@@ -1982,9 +1969,7 @@ static void *video_logo(void)
 
 static int cfb_fb_is_in_dram(void)
 {
-	bd_t *bd = gd->bd;
-#if defined(CONFIG_ARM) || defined(CONFIG_NDS32) || \
-defined(CONFIG_SANDBOX) || defined(CONFIG_X86)
+	struct bd_info *bd = gd->bd;
 	ulong start, end;
 	int i;
 
@@ -1995,11 +1980,7 @@ defined(CONFIG_SANDBOX) || defined(CONFIG_X86)
 		    (ulong)video_fb_address < end)
 			return 1;
 	}
-#else
-	if ((ulong)video_fb_address >= bd->bi_memstart &&
-	    (ulong)video_fb_address < bd->bi_memstart + bd->bi_memsize)
-		return 1;
-#endif
+
 	return 0;
 }
 

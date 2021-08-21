@@ -87,6 +87,11 @@ int owl_clk_enable(struct clk *clk)
 		/* Enable UART3 interface clock */
 		setbits_le32(priv->base + CMU_DEVCLKEN1, CMU_DEVCLKEN1_UART3);
 		break;
+	case CLK_RMII_REF:
+	case CLK_ETHERNET:
+		setbits_le32(priv->base + CMU_DEVCLKEN1, CMU_DEVCLKEN1_ETH);
+		setbits_le32(priv->base + CMU_ETHERNETPLL, 5);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -111,6 +116,10 @@ int owl_clk_disable(struct clk *clk)
 			return -EINVAL;
 		/* Disable UART3 interface clock */
 		clrbits_le32(priv->base + CMU_DEVCLKEN1, CMU_DEVCLKEN1_UART3);
+		break;
+	case CLK_RMII_REF:
+	case CLK_ETHERNET:
+		clrbits_le32(priv->base + CMU_DEVCLKEN1, CMU_DEVCLKEN1_ETH);
 		break;
 	default:
 		return -EINVAL;
@@ -152,6 +161,6 @@ U_BOOT_DRIVER(clk_owl) = {
 	.id		= UCLASS_CLK,
 	.of_match	= owl_clk_ids,
 	.ops		= &owl_clk_ops,
-	.priv_auto_alloc_size = sizeof(struct owl_clk_priv),
+	.priv_auto	= sizeof(struct owl_clk_priv),
 	.probe		= owl_clk_probe,
 };

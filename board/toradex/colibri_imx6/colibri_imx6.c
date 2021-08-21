@@ -12,6 +12,7 @@
 #include <env.h>
 #include <init.h>
 #include <net.h>
+#include <asm/global_data.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 
@@ -310,7 +311,7 @@ int board_mmc_getcd(struct mmc *mmc)
 	return ret;
 }
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	struct src *psrc = (struct src *)SRC_BASE_ADDR;
 	unsigned reg = readl(&psrc->sbmr1) >> 11;
@@ -652,7 +653,7 @@ int checkboard(void)
 }
 
 #if defined(CONFIG_OF_LIBFDT) && defined(CONFIG_OF_BOARD_SETUP)
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	u32 cma_size;
 
@@ -1080,18 +1081,28 @@ void board_init_f(ulong dummy)
 	board_init_r(NULL, 0);
 }
 
-void reset_cpu(ulong addr)
+#ifdef CONFIG_SPL_LOAD_FIT
+int board_fit_config_name_match(const char *name)
+{
+	if (!strcmp(name, "imx6-colibri"))
+		return 0;
+
+	return -1;
+}
+#endif
+
+void reset_cpu(void)
 {
 }
 
 #endif /* CONFIG_SPL_BUILD */
 
-static struct mxc_serial_platdata mxc_serial_plat = {
+static struct mxc_serial_plat mxc_serial_plat = {
 	.reg = (struct mxc_uart *)UART1_BASE,
 	.use_dte = true,
 };
 
-U_BOOT_DEVICE(mxc_serial) = {
+U_BOOT_DRVINFO(mxc_serial) = {
 	.name = "serial_mxc",
-	.platdata = &mxc_serial_plat,
+	.plat = &mxc_serial_plat,
 };

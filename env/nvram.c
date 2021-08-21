@@ -27,6 +27,7 @@
 #include <command.h>
 #include <env.h>
 #include <env_internal.h>
+#include <asm/global_data.h>
 #include <linux/stddef.h>
 #include <search.h>
 #include <errno.h>
@@ -64,7 +65,7 @@ static int env_nvram_load(void)
 #else
 	memcpy(buf, (void *)CONFIG_ENV_ADDR, CONFIG_ENV_SIZE);
 #endif
-	return env_import(buf, 1);
+	return env_import(buf, 1, H_EXTERNAL);
 }
 
 static int env_nvram_save(void)

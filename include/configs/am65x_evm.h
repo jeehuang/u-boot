@@ -10,7 +10,6 @@
 #define __CONFIG_AM654_EVM_H
 
 #include <linux/sizes.h>
-#include <config_distro_bootcmd.h>
 #include <environment/ti/mmc.h>
 #include <environment/ti/k3_rproc.h>
 #include <environment/ti/k3_dfu.h>
@@ -29,7 +28,7 @@
  * our memory footprint. The less we use for BSS the more we have available
  * for everything else.
  */
-#define CONFIG_SPL_BSS_MAX_SIZE		0x5000
+#define CONFIG_SPL_BSS_MAX_SIZE		0xc00
 /*
  * Link BSS to be within SPL in a dedicated region located near the top of
  * the MCU SRAM, this way making it available also before relocation. Note
@@ -67,9 +66,6 @@
 	"findfdt="							\
 		"setenv name_fdt k3-am654-base-board.dtb;"		\
 		"setenv fdtfile ${name_fdt}\0"				\
-	"loadaddr=0x80080000\0"						\
-	"fdtaddr=0x82000000\0"						\
-	"overlayaddr=0x83000000\0"					\
 	"name_kern=Image\0"						\
 	"console=ttyS2,115200n8\0"					\
 	"stdin=serial,usbkbd\0"						\
@@ -91,8 +87,8 @@
 		"fdt resize 0x100000;"					\
 		"for overlay in $name_overlays;"			\
 		"do;"							\
-		"load mmc ${bootpart} ${overlayaddr} ${bootdir}/${overlay};"	\
-		"fdt apply ${overlayaddr};"				\
+		"load mmc ${bootpart} ${dtboaddr} ${bootdir}/${overlay};"	\
+		"fdt apply ${dtboaddr};"				\
 		"done;\0"						\
 	"get_kern_mmc=load mmc ${bootpart} ${loadaddr} "		\
 		"${bootdir}/${name_kern}\0"				\
@@ -124,13 +120,24 @@
 		"rootfstype=ubifs root=ubi0:rootfs rw ubi.mtd=ospi.rootfs\0"
 
 #define EXTRA_ENV_DFUARGS						\
-	"dfu_bufsiz=0x20000\0"						\
 	DFU_ALT_INFO_MMC						\
+	DFU_ALT_INFO_RAM						\
 	DFU_ALT_INFO_EMMC						\
 	DFU_ALT_INFO_OSPI
 
+#ifdef CONFIG_TARGET_AM654_A53_EVM
+#define BOOT_TARGET_DEVICES(func) \
+	func(MMC, mmc, 1) \
+	func(MMC, mmc, 0)
+
+#include <config_distro_bootcmd.h>
+#else
+#define BOOTENV
+#endif
+
 /* Incorporate settings into the U-Boot environment */
 #define CONFIG_EXTRA_ENV_SETTINGS					\
+	DEFAULT_LINUX_BOOT_ENV						\
 	DEFAULT_MMC_TI_ARGS						\
 	DEFAULT_FIT_TI_ARGS						\
 	EXTRA_ENV_AM65X_BOARD_SETTINGS					\
@@ -138,13 +145,10 @@
 	EXTRA_ENV_AM65X_BOARD_SETTINGS_MTD				\
 	EXTRA_ENV_AM65X_BOARD_SETTINGS_UBI				\
 	EXTRA_ENV_RPROC_SETTINGS					\
-	EXTRA_ENV_DFUARGS
+	EXTRA_ENV_DFUARGS						\
+	BOOTENV
 
-/* MMC ENV related defines */
-#ifdef CONFIG_ENV_IS_IN_MMC
-#define CONFIG_SYS_MMC_ENV_DEV		0
-#define CONFIG_SYS_MMC_ENV_PART	1
-#endif
+#define CONFIG_SYS_USB_FAT_BOOT_PARTITION 1
 
 /* Now for the remaining common defines */
 #include <configs/ti_armv7_common.h>

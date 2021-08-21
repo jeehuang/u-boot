@@ -35,11 +35,6 @@
 #define CONFIG_BOOTP_BOOTFILESIZE
 
 /*
- * FDT options
- */
-#define CONFIG_LMB
-
-/*
  * MEMORY ORGANIZATION
  * -Monitor at top of sdram.
  * -The heap is placed below the monitor
@@ -61,8 +56,6 @@
  * of flash. NOTE: the monitor length must be multiple of sector size
  * (which is common practice).
  */
-
-#define CONFIG_ENV_OVERWRITE		/* Serial change Ok	*/
 
 /*
  * MISC

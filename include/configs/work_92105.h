@@ -36,11 +36,6 @@
 					 - GENERATED_GBL_DATA_SIZE)
 
 /*
- * Serial Driver
- */
-#define CONFIG_SYS_LPC32XX_UART		5   /* UART5 - NS16550 */
-
-/*
  * Ethernet Driver
  */
 
@@ -52,8 +47,7 @@
  * I2C driver
  */
 
-#define CONFIG_SYS_I2C_LPC32XX
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_SPEED 350000
 
 /*
@@ -128,8 +122,6 @@
 /* Use the framework and generic lib */
 /* SPL will use serial */
 /* SPL will load U-Boot from NAND offset 0x40000 */
-#define CONFIG_SPL_NAND_DRIVERS
-#define CONFIG_SPL_NAND_BASE
 #define CONFIG_SYS_NAND_U_BOOT_OFFS  0x00040000
 #define CONFIG_SPL_PAD_TO 0x20000
 /* U-Boot will be 0x40000 bytes, loaded and run at CONFIG_SYS_TEXT_BASE */

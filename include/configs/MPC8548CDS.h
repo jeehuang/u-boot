@@ -21,10 +21,7 @@
 #undef CONFIG_PCI2
 #define CONFIG_SYS_PCI_64BIT	1	/* enable 64-bit PCI resources */
 
-#define CONFIG_ENV_OVERWRITE
 #define CONFIG_INTERRUPTS		/* enable pci, srio, ddr interrupts */
-
-#define CONFIG_FSL_VIA
 
 #ifndef __ASSEMBLY__
 #include <linux/stringify.h>
@@ -42,11 +39,6 @@ extern unsigned long get_clock_freq(void);
  * Only possible on E500 Version 2 or newer cores.
  */
 #define CONFIG_ENABLE_36BIT_PHYS	1
-
-#ifdef CONFIG_PHYS_64BIT
-#define CONFIG_ADDR_MAP
-#define CONFIG_SYS_NUM_ADDR_MAP		16	/* number of TLB1 entries */
-#endif
 
 #define CONFIG_SYS_CCSRBAR		0xe0000000
 #define CONFIG_SYS_CCSRBAR_PHYS_LOW	CONFIG_SYS_CCSRBAR
@@ -73,7 +65,6 @@ extern unsigned long get_clock_freq(void);
 #error ("CONFIG_SPD_EEPROM is required")
 #endif
 
-#undef CONFIG_CLOCKS_IN_MHZ
 /*
  * Physical Address Map
  *
@@ -303,8 +294,8 @@ extern unsigned long get_clock_freq(void);
 /*
  * I2C
  */
-#ifndef CONFIG_DM_I2C
-#define CONFIG_SYS_I2C
+#if !CONFIG_IS_ENABLED(DM_I2C)
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_FSL_I2C_SPEED	400000
 #define CONFIG_SYS_FSL_I2C_SLAVE	0x7F
 #define CONFIG_SYS_FSL_I2C_OFFSET	0x3000
@@ -319,7 +310,6 @@ extern unsigned long get_clock_freq(void);
 /* EEPROM */
 #define CONFIG_ID_EEPROM
 #define CONFIG_SYS_I2C_EEPROM_CCID
-#define CONFIG_SYS_ID_EEPROM
 #define CONFIG_SYS_I2C_EEPROM_ADDR     0x57
 #define CONFIG_SYS_I2C_EEPROM_ADDR_LEN 2
 
@@ -380,25 +370,7 @@ extern unsigned long get_clock_freq(void);
 #endif
 
 #if defined(CONFIG_PCI)
-#undef CONFIG_EEPRO100
-#undef CONFIG_TULIP
-
-#if !defined(CONFIG_DM_PCI)
-#define CONFIG_FSL_PCI_INIT		1	/* Use common FSL init code */
-#define CONFIG_PCI_INDIRECT_BRIDGE	1
-#define CONFIG_SYS_PCIE1_NAME		"Slot"
-#ifdef CONFIG_PHYS_64BIT
-#define CONFIG_SYS_PCIE1_MEM_BUS	0xe0000000
-#else
-#define CONFIG_SYS_PCIE1_MEM_BUS	0xa0000000
-#endif
-#define CONFIG_SYS_PCIE1_MEM_SIZE	0x20000000      /* 512M */
-#define CONFIG_SYS_PCIE1_IO_BUS		0x00000000
-#define CONFIG_SYS_PCIE1_IO_SIZE	0x00100000	/*   1M */
-#endif
-
 #define CONFIG_PCI_SCAN_SHOW		/* show pci devices on startup */
-
 #endif	/* CONFIG_PCI */
 
 #if defined(CONFIG_TSEC_ENET)

@@ -5,8 +5,10 @@
 
 #include <common.h>
 #include <blk.h>
+#include <dm.h>
 #include <dfu.h>
 #include <env.h>
+#include <log.h>
 #include <memalign.h>
 #include <misc.h>
 #include <mtd.h>
@@ -113,11 +115,13 @@ void set_dfu_alt_info(char *interface, char *devstr)
 	snprintf(buf, DFU_ALT_BUF_LEN,
 		 "ram 0=%s", CONFIG_DFU_ALT_RAM0);
 
-	if (!uclass_get_device(UCLASS_MMC, 0, &dev))
-		board_get_alt_info_mmc(dev, buf);
+	if (CONFIG_IS_ENABLED(MMC)) {
+		if (!uclass_get_device(UCLASS_MMC, 0, &dev))
+			board_get_alt_info_mmc(dev, buf);
 
-	if (!uclass_get_device(UCLASS_MMC, 1, &dev))
-		board_get_alt_info_mmc(dev, buf);
+		if (!uclass_get_device(UCLASS_MMC, 1, &dev))
+			board_get_alt_info_mmc(dev, buf);
+	}
 
 	if (CONFIG_IS_ENABLED(MTD)) {
 		/* probe all MTD devices */
@@ -139,12 +143,13 @@ void set_dfu_alt_info(char *interface, char *devstr)
 			board_get_alt_info_mtd(mtd, buf);
 	}
 
-#ifdef CONFIG_DFU_VIRT
-	strncat(buf, "&virt 0=OTP", DFU_ALT_BUF_LEN);
+	if (IS_ENABLED(CONFIG_DFU_VIRT) &&
+	    IS_ENABLED(CMD_STM32PROG_USB)) {
+		strncat(buf, "&virt 0=OTP", DFU_ALT_BUF_LEN);
 
-	if (IS_ENABLED(CONFIG_PMIC_STPMIC1))
-		strncat(buf, "&virt 1=PMIC", DFU_ALT_BUF_LEN);
-#endif
+		if (IS_ENABLED(CONFIG_PMIC_STPMIC1))
+			strncat(buf, "&virt 1=PMIC", DFU_ALT_BUF_LEN);
+	}
 
 	env_set("dfu_alt_info", buf);
 	puts("DFU alt info setting: done\n");
@@ -160,7 +165,7 @@ static int dfu_otp_read(u64 offset, u8 *buffer, long *size)
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_MISC,
-					  DM_GET_DRIVER(stm32mp_bsec),
+					  DM_DRIVER_GET(stm32mp_bsec),
 					  &dev);
 	if (ret)
 		return ret;
@@ -181,7 +186,7 @@ static int dfu_pmic_read(u64 offset, u8 *buffer, long *size)
 	struct udevice *dev;
 
 	ret = uclass_get_device_by_driver(UCLASS_MISC,
-					  DM_GET_DRIVER(stpmic1_nvm),
+					  DM_DRIVER_GET(stpmic1_nvm),
 					  &dev);
 	if (ret)
 		return ret;
@@ -196,7 +201,7 @@ static int dfu_pmic_read(u64 offset, u8 *buffer, long *size)
 		ret = 0;
 	}
 #else
-	pr_err("PMIC update not supported");
+	log_err("PMIC update not supported");
 	ret = -EOPNOTSUPP;
 #endif
 
@@ -213,7 +218,7 @@ int dfu_read_medium_virt(struct dfu_entity *dfu, u64 offset,
 		return dfu_pmic_read(offset, buf, len);
 	}
 
-	if (CONFIG_IS_ENABLED(CMD_STM32PROG) &&
+	if (IS_ENABLED(CONFIG_CMD_STM32PROG_USB) &&
 	    dfu->data.virt.dev_num >= STM32PROG_VIRT_FIRST_DEV_NUM)
 		return stm32prog_read_medium_virt(dfu, offset, buf, len);
 
@@ -224,7 +229,7 @@ int dfu_read_medium_virt(struct dfu_entity *dfu, u64 offset,
 int dfu_write_medium_virt(struct dfu_entity *dfu, u64 offset,
 			  void *buf, long *len)
 {
-	if (CONFIG_IS_ENABLED(CMD_STM32PROG) &&
+	if (IS_ENABLED(CONFIG_CMD_STM32PROG_USB) &&
 	    dfu->data.virt.dev_num >= STM32PROG_VIRT_FIRST_DEV_NUM)
 		return stm32prog_write_medium_virt(dfu, offset, buf, len);
 
@@ -233,7 +238,7 @@ int dfu_write_medium_virt(struct dfu_entity *dfu, u64 offset,
 
 int __weak dfu_get_medium_size_virt(struct dfu_entity *dfu, u64 *size)
 {
-	if (CONFIG_IS_ENABLED(CMD_STM32PROG) &&
+	if (IS_ENABLED(CONFIG_CMD_STM32PROG_USB) &&
 	    dfu->data.virt.dev_num >= STM32PROG_VIRT_FIRST_DEV_NUM)
 		return stm32prog_get_medium_size_virt(dfu, size);
 

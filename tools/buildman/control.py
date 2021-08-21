@@ -110,7 +110,7 @@ def ShowToolchainPrefix(boards, toolchains):
     return None
 
 def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
-               clean_dir=False):
+               clean_dir=False, test_thread_exceptions=False):
     """The main control code for buildman
 
     Args:
@@ -124,6 +124,11 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
                 arguments. This setting is useful for tests.
         board: Boards() object to use, containing a list of available
                 boards. If this is None it will be created and scanned.
+        clean_dir: Used for tests only, indicates that the existing output_dir
+            should be removed before starting the build
+        test_thread_exceptions: Uses for tests only, True to make the threads
+            raise an exception instead of reporting their result. This simulates
+            a failure in the code somewhere
     """
     global builder
 
@@ -185,10 +190,16 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
         if not os.path.exists(options.output_dir):
             os.makedirs(options.output_dir)
         board_file = os.path.join(options.output_dir, 'boards.cfg')
-        genboardscfg = os.path.join(options.git, 'tools/genboardscfg.py')
+        our_path = os.path.dirname(os.path.realpath(__file__))
+        genboardscfg = os.path.join(our_path, '../genboardscfg.py')
+        if not os.path.exists(genboardscfg):
+            genboardscfg = os.path.join(options.git, 'tools/genboardscfg.py')
         status = subprocess.call([genboardscfg, '-q', '-o', board_file])
         if status != 0:
-            sys.exit("Failed to generate boards.cfg")
+            # Older versions don't support -q
+            status = subprocess.call([genboardscfg, '-o', board_file])
+            if status != 0:
+                sys.exit("Failed to generate boards.cfg")
 
         boards = board.Boards()
         boards.ReadBoards(board_file)
@@ -270,14 +281,14 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
                                                       options.branch)
             upstream_commit = gitutil.GetUpstream(options.git_dir,
                                                   options.branch)
-            series = patchstream.GetMetaDataForList(upstream_commit,
+            series = patchstream.get_metadata_for_list(upstream_commit,
                 options.git_dir, 1, series=None, allow_overwrite=True)
 
-            series = patchstream.GetMetaDataForList(range_expr,
+            series = patchstream.get_metadata_for_list(range_expr,
                     options.git_dir, None, series, allow_overwrite=True)
         else:
             # Honour the count
-            series = patchstream.GetMetaDataForList(options.branch,
+            series = patchstream.get_metadata_for_list(options.branch,
                     options.git_dir, count, series=None, allow_overwrite=True)
     else:
         series = None
@@ -288,7 +299,7 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
 
     # By default we have one thread per CPU. But if there are not enough jobs
     # we can have fewer threads and use a high '-j' value for make.
-    if not options.threads:
+    if options.threads is None:
         options.threads = min(multiprocessing.cpu_count(), len(selected))
     if not options.jobs:
         options.jobs = max(1, (multiprocessing.cpu_count() +
@@ -322,7 +333,8 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
             config_only=options.config_only,
             squash_config_y=not options.preserve_config_y,
             warnings_as_errors=options.warnings_as_errors,
-            work_in_output=options.work_in_output)
+            work_in_output=options.work_in_output,
+            test_thread_exceptions=test_thread_exceptions)
     builder.force_config_on_failure = not options.quick
     if make_func:
         builder.do_make = make_func
@@ -362,9 +374,11 @@ def DoBuildman(options, args, toolchains=None, make_func=None, boards=None,
         if options.summary:
             builder.ShowSummary(commits, board_selected)
         else:
-            fail, warned = builder.BuildBoards(commits, board_selected,
-                                options.keep_outputs, options.verbose)
-            if fail:
+            fail, warned, excs = builder.BuildBoards(
+                commits, board_selected, options.keep_outputs, options.verbose)
+            if excs:
+                return 102
+            elif fail:
                 return 100
             elif warned and not options.ignore_warnings:
                 return 101

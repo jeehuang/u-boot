@@ -11,6 +11,7 @@
 #include <netdev.h>
 #include <fsl_ifc.h>
 #include <fsl_ddr.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <hwconfig.h>
 #include <fdt_support.h>
@@ -24,6 +25,7 @@
 #include <asm/arch/ppa.h>
 #include <fsl_sec.h>
 #include <asm/arch-fsl-layerscape/fsl_icid.h>
+#include "../common/i2c_mux.h"
 
 #ifdef CONFIG_FSL_QIXIS
 #include "../common/qixis.h"
@@ -41,6 +43,48 @@ enum {
 	MUX_TYPE_SDHC,
 	MUX_TYPE_DSPI,
 };
+
+#ifdef CONFIG_VID
+u16 soc_get_fuse_vid(int vid_index)
+{
+	static const u16 vdd[32] = {
+		10500,
+		0,      /* reserved */
+		9750,
+		0,      /* reserved */
+		9500,
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		9000,   /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		10000,  /* 1.0000V */
+		0,      /* reserved */
+		10250,
+		0,      /* reserved */
+		10500,
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+		0,      /* reserved */
+	};
+
+	return vdd[vid_index];
+};
+#endif
 
 unsigned long long get_qixis_addr(void)
 {
@@ -162,31 +206,9 @@ unsigned long get_board_sys_clk(void)
 	return 100000000;
 }
 
-int select_i2c_ch_pca9547(u8 ch)
-{
-	int ret;
-
-#ifndef CONFIG_DM_I2C
-	ret = i2c_write(I2C_MUX_PCA_ADDR_PRI, 0, 1, &ch, 1);
-#else
-	struct udevice *dev;
-
-	ret = i2c_get_chip_for_busnum(0, I2C_MUX_PCA_ADDR_PRI, 1, &dev);
-	if (!ret)
-		ret = dm_i2c_write(dev, 0, &ch, 1);
-#endif
-
-	if (ret) {
-		puts("PCA: failed to select proper channel\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 int i2c_multiplexer_select_vid_channel(u8 channel)
 {
-	return select_i2c_ch_pca9547(channel);
+	return select_i2c_ch_pca9547(channel, 0);
 }
 
 int config_board_mux(int ctrl_type)
@@ -224,7 +246,7 @@ int board_init(void)
 #ifdef CONFIG_ENV_IS_NOWHERE
 	gd->env_addr = (ulong)&default_environment[0];
 #endif
-	select_i2c_ch_pca9547(I2C_MUX_CH_DEFAULT);
+	select_i2c_ch_pca9547(I2C_MUX_CH_DEFAULT, 0);
 
 #ifdef CONFIG_FSL_QIXIS
 	QIXIS_WRITE(rst_ctl, QIXIS_RST_CTL_RESET_EN);
@@ -416,7 +438,7 @@ void fsl_fdt_fixup_flash(void *fdt)
 	fdt_status_disabled(fdt, offset);
 }
 
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	int i;
 	u16 mc_memory_bank = 0;

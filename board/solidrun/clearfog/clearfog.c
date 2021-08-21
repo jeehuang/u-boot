@@ -10,6 +10,7 @@
 #include <miiphy.h>
 #include <net.h>
 #include <netdev.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/cpu.h>
 #include <asm/arch/soc.h>
@@ -141,6 +142,7 @@ static struct mv_ddr_topology_map board_topology_map = {
 	    MV_DDR_TIM_DEFAULT} },	/* timing */
 	BUS_MASK_32BIT,			/* Busses mask */
 	MV_DDR_CFG_DEFAULT,		/* ddr configuration data source */
+	NOT_COMBINED,			/* ddr twin-die combined */
 	{ {0} },			/* raw spd data */
 	{0},				/* timing parameters */
 	{ {0} },			/* electrical configuration */
@@ -232,7 +234,7 @@ int checkboard(void)
 	return 0;
 }
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	cpu_eth_init(bis); /* Built in controller(s) come first */
 	return pci_eth_init(bis);
@@ -240,6 +242,9 @@ int board_eth_init(bd_t *bis)
 
 int board_late_init(void)
 {
+	if (env_get("fdtfile"))
+		return 0;
+
 	cf_read_tlv_data();
 
 	if (sr_product_is(&cf_tlv_data, "Clearfog Base"))

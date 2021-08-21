@@ -46,7 +46,6 @@
 /*
  * Serial Driver
  */
-#define CONFIG_MXC_UART
 #define CONFIG_MXC_UART_BASE		UART1_BASE
 
 /*
@@ -89,7 +88,7 @@
  * I2C
  */
 #ifdef CONFIG_CMD_I2C
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_MXC
 #define CONFIG_SYS_I2C_MXC_I2C1		/* enable I2C bus 1 */
 #define CONFIG_SYS_I2C_MXC_I2C2		/* enable I2C bus 2 */
@@ -127,19 +126,12 @@
 /*
  * LCD
  */
-#define CONFIG_VIDEO_BMP_RLE8
-#define CONFIG_VIDEO_BMP_GZIP
-#define CONFIG_SPLASH_SCREEN
-#define CONFIG_SPLASHIMAGE_GUARD
-#define CONFIG_SPLASH_SCREEN_ALIGN
-#define CONFIG_BMP_16BPP
 #define CONFIG_VIDEO_LOGO
 #define CONFIG_SYS_VIDEO_LOGO_MAX_SIZE	(2 << 20)
 
 /* LVDS display */
 #define CONFIG_SYS_LDB_CLOCK			33260000
 #define CONFIG_IMX_VIDEO_SKIP
-#define CONFIG_SPLASH_SOURCE
 
 /* IIM Fuses */
 #define CONFIG_FSL_IIM

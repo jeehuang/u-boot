@@ -14,6 +14,7 @@
 #include <net.h>
 #include <status_led.h>
 #include <cpsw.h>
+#include <asm/global_data.h>
 #include <linux/delay.h>
 
 #include <asm/arch/sys_proto.h>
@@ -128,7 +129,7 @@ static int handle_mac_address(void)
 #define AR8051_DEBUG_RGMII_CLK_DLY_REG	0x5
 #define AR8051_RGMII_TX_CLK_DLY		0x100
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(struct bd_info *bis)
 {
 	int rv, n = 0;
 	const char *devname;

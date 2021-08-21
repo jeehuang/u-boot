@@ -49,9 +49,6 @@
 #endif
 #define CONFIG_SYS_LOAD_ADDR	CONFIG_LOADADDR
 
-/* allow to overwrite serial and ethaddr */
-#define CONFIG_ENV_OVERWRITE
-
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_CBSIZE	512
 #define CONFIG_SYS_MAXARGS	32
@@ -59,7 +56,7 @@
 /* MMC */
 
 #ifdef CONFIG_SPL_BUILD
-#define CONFIG_SPL_DRIVERS_MISC_SUPPORT
+#define CONFIG_SPL_DRIVERS_MISC
 #endif
 
 #endif

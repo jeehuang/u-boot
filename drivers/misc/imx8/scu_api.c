@@ -8,6 +8,7 @@
 #include <common.h>
 #include <hang.h>
 #include <malloc.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <dm.h>
 #include <asm/arch/sci/sci.h>
@@ -372,6 +373,31 @@ void sc_misc_boot_status(sc_ipc_t ipc, sc_misc_boot_status_t status)
 	if (ret)
 		printf("%s: status:%d res:%d\n",
 		       __func__, status, RPC_R8(&msg));
+}
+
+int sc_misc_get_boot_container(sc_ipc_t ipc, u8 *idx)
+{
+	struct udevice *dev = gd->arch.scu_dev;
+	int size = sizeof(struct sc_rpc_msg_s);
+	struct sc_rpc_msg_s msg;
+	int ret;
+
+	if (!dev)
+		hang();
+
+	RPC_VER(&msg) = SC_RPC_VERSION;
+	RPC_SIZE(&msg) = 1U;
+	RPC_SVC(&msg) = (u8)SC_RPC_SVC_MISC;
+	RPC_FUNC(&msg) = (u8)MISC_FUNC_GET_BOOT_CONTAINER;
+
+	ret = misc_call(dev, SC_FALSE, &msg, size, &msg, size);
+	if (ret < 0)
+		return ret;
+
+	if (idx)
+		*idx = (u8)RPC_U8(&msg, 0U);
+
+	return 0;
 }
 
 void sc_misc_build_info(sc_ipc_t ipc, u32 *build, u32 *commit)

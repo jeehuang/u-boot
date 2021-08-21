@@ -9,6 +9,7 @@
 #include <net.h>
 #include <asm/arch/stm32.h>
 #include <asm/arch/sys_proto.h>
+#include <asm/global_data.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <bootm.h>
@@ -41,6 +42,7 @@
 #include <usb.h>
 #include <usb/dwc2_udc.h>
 #include <watchdog.h>
+#include "../../st/common/stpmic1.h"
 
 /* SYSCFG registers */
 #define SYSCFG_BOOTR		0x00
@@ -80,14 +82,70 @@
  */
 DECLARE_GLOBAL_DATA_PTR;
 
+#define KS_CCR		0x08
+#define KS_CCR_EEPROM	BIT(9)
+#define KS_BE0		BIT(12)
+#define KS_BE1		BIT(13)
+#define KS_CIDER	0xC0
+#define CIDER_ID	0x8870
+
 int setup_mac_address(void)
 {
 	unsigned char enetaddr[6];
+	bool skip_eth0 = false;
+	bool skip_eth1 = false;
 	struct udevice *dev;
 	int off, ret;
 
 	ret = eth_env_get_enetaddr("ethaddr", enetaddr);
 	if (ret)	/* ethaddr is already set */
+		skip_eth0 = true;
+
+	off = fdt_path_offset(gd->fdt_blob, "ethernet1");
+	if (off < 0) {
+		/* ethernet1 is not present in the system */
+		skip_eth1 = true;
+		goto out_set_ethaddr;
+	}
+
+	ret = eth_env_get_enetaddr("eth1addr", enetaddr);
+	if (ret) {
+		/* eth1addr is already set */
+		skip_eth1 = true;
+		goto out_set_ethaddr;
+	}
+
+	ret = fdt_node_check_compatible(gd->fdt_blob, off, "micrel,ks8851-mll");
+	if (ret)
+		goto out_set_ethaddr;
+
+	/*
+	 * KS8851 with EEPROM may use custom MAC from EEPROM, read
+	 * out the KS8851 CCR register to determine whether EEPROM
+	 * is present. If EEPROM is present, it must contain valid
+	 * MAC address.
+	 */
+	u32 reg, cider, ccr;
+	reg = fdt_get_base_address(gd->fdt_blob, off);
+	if (!reg)
+		goto out_set_ethaddr;
+
+	writew(KS_BE0 | KS_BE1 | KS_CIDER, reg + 2);
+	cider = readw(reg);
+	if ((cider & 0xfff0) != CIDER_ID) {
+		skip_eth1 = true;
+		goto out_set_ethaddr;
+	}
+
+	writew(KS_BE0 | KS_BE1 | KS_CCR, reg + 2);
+	ccr = readw(reg);
+	if (ccr & KS_CCR_EEPROM) {
+		skip_eth1 = true;
+		goto out_set_ethaddr;
+	}
+
+out_set_ethaddr:
+	if (skip_eth0 && skip_eth1)
 		return 0;
 
 	off = fdt_path_offset(gd->fdt_blob, "eeprom0");
@@ -108,8 +166,14 @@ int setup_mac_address(void)
 		return ret;
 	}
 
-	if (is_valid_ethaddr(enetaddr))
-		eth_env_set_enetaddr("ethaddr", enetaddr);
+	if (is_valid_ethaddr(enetaddr)) {
+		if (!skip_eth0)
+			eth_env_set_enetaddr("ethaddr", enetaddr);
+
+		enetaddr[5]++;
+		if (!skip_eth1)
+			eth_env_set_enetaddr("eth1addr", enetaddr);
+	}
 
 	return 0;
 }
@@ -139,6 +203,7 @@ int checkboard(void)
 static u8 brdcode __section("data");
 static u8 ddr3code __section("data");
 static u8 somcode __section("data");
+static u32 opp_voltage_mv __section(".data");
 
 static void board_get_coding_straps(void)
 {
@@ -196,8 +261,16 @@ int board_stm32mp1_ddr_config_name_match(struct udevice *dev,
 	return -EINVAL;
 }
 
+void board_vddcore_init(u32 voltage_mv)
+{
+	if (IS_ENABLED(CONFIG_SPL_BUILD))
+		opp_voltage_mv = voltage_mv;
+}
+
 int board_early_init_f(void)
 {
+	if (IS_ENABLED(CONFIG_SPL_BUILD))
+		stpmic1_init(opp_voltage_mv);
 	board_get_coding_straps();
 
 	return 0;
@@ -206,9 +279,13 @@ int board_early_init_f(void)
 #ifdef CONFIG_SPL_LOAD_FIT
 int board_fit_config_name_match(const char *name)
 {
-	char test[20];
+	const char *compat;
+	char test[128];
 
-	snprintf(test, sizeof(test), "somrev%d_boardrev%d", somcode, brdcode);
+	compat = fdt_getprop(gd->fdt_blob, 0, "compatible", NULL);
+
+	snprintf(test, sizeof(test), "%s_somrev%d_boardrev%d",
+		compat, somcode, brdcode);
 
 	if (!strcmp(name, test))
 		return 0;
@@ -276,7 +353,7 @@ int g_dnl_board_usb_cable_connected(void)
 	int ret;
 
 	ret = uclass_get_device_by_driver(UCLASS_USB_GADGET_GENERIC,
-					  DM_GET_DRIVER(dwc2_udc_otg),
+					  DM_DRIVER_GET(dwc2_udc_otg),
 					  &dwc2_udc_otg);
 	if (!ret)
 		debug("dwc2_udc_otg init failed\n");
@@ -408,11 +485,11 @@ static void sysconf_init(void)
 	 *      but this value need to be consistent with board design
 	 */
 	ret = uclass_get_device_by_driver(UCLASS_PMIC,
-					  DM_GET_DRIVER(stm32mp_pwr_pmic),
+					  DM_DRIVER_GET(stm32mp_pwr_pmic),
 					  &pwr_dev);
 	if (!ret) {
 		ret = uclass_get_device_by_driver(UCLASS_MISC,
-						  DM_GET_DRIVER(stm32mp_bsec),
+						  DM_DRIVER_GET(stm32mp_bsec),
 						  &dev);
 		if (ret) {
 			pr_err("Can't find stm32mp_bsec driver\n");
@@ -513,17 +590,11 @@ static void board_init_fmc2(void)
 /* board dependent setup after realloc */
 int board_init(void)
 {
-	struct udevice *dev;
-
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = STM32_DDR_BASE + 0x100;
 
-	/* probe all PINCTRL for hog */
-	for (uclass_first_device(UCLASS_PINCTRL, &dev);
-	     dev;
-	     uclass_next_device(&dev)) {
-		pr_debug("probe pincontrol = %s\n", dev->name);
-	}
+	if (CONFIG_IS_ENABLED(DM_GPIO_HOG))
+		gpio_hog_probe_all();
 
 	board_key_check();
 
@@ -589,11 +660,11 @@ int board_interface_eth_init(struct udevice *dev,
 	bool eth_ref_clk_sel_reg = false;
 
 	/* Gigabit Ethernet 125MHz clock selection. */
-	eth_clk_sel_reg = dev_read_bool(dev, "st,eth_clk_sel");
+	eth_clk_sel_reg = dev_read_bool(dev, "st,eth-clk-sel");
 
 	/* Ethernet 50Mhz RMII clock selection */
 	eth_ref_clk_sel_reg =
-		dev_read_bool(dev, "st,eth_ref_clk_sel");
+		dev_read_bool(dev, "st,eth-ref-clk-sel");
 
 	syscfg = (u8 *)syscon_get_first_range(STM32MP_SYSCON_SYSCFG);
 
@@ -649,20 +720,8 @@ int board_interface_eth_init(struct udevice *dev,
 	return 0;
 }
 
-enum env_location env_get_location(enum env_operation op, int prio)
-{
-	if (prio)
-		return ENVL_UNKNOWN;
-
-#ifdef CONFIG_ENV_IS_IN_SPI_FLASH
-	return ENVL_SPI_FLASH;
-#else
-	return ENVL_NOWHERE;
-#endif
-}
-
 #if defined(CONFIG_OF_BOARD_SETUP)
-int ft_board_setup(void *blob, bd_t *bd)
+int ft_board_setup(void *blob, struct bd_info *bd)
 {
 	return 0;
 }

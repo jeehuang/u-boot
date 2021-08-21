@@ -24,10 +24,6 @@
 	. = DEFINED(env_offset) ? env_offset : .; \
 	env/embedded.o(.text*);
 
-/*
- * Command line configuration.
- */
-
 #ifdef CONFIG_IDE
 /* ATA */
 #	define CONFIG_IDE_RESET		1
@@ -74,7 +70,7 @@
 #define CONFIG_HOSTNAME		"M5253DEMO"
 
 /* I2C */
-#define CONFIG_SYS_I2C
+#define CONFIG_SYS_I2C_LEGACY
 #define CONFIG_SYS_I2C_FSL
 #define CONFIG_SYS_FSL_I2C_SPEED	80000
 #define CONFIG_SYS_FSL_I2C_SLAVE	0x7F

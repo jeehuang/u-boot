@@ -6,6 +6,7 @@
 
 #include <common.h>
 #include <hang.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <errno.h>
 #include <init.h>
@@ -87,7 +88,7 @@ static struct fsl_esdhc_cfg usdhc_cfg[2] = {
 	{USDHC2_BASE_ADDR},
 };
 
-int board_mmc_init(bd_t *bis)
+int board_mmc_init(struct bd_info *bis)
 {
 	int i, ret;
 	/*

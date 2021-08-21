@@ -30,10 +30,14 @@ struct fdt_region;
 #define IMAGE_ENABLE_FIT	1
 #define IMAGE_ENABLE_OF_LIBFDT	1
 #define CONFIG_FIT_VERBOSE	1 /* enable fit_format_{error,warning}() */
-#define CONFIG_FIT_ENABLE_RSASSA_PSS_SUPPORT 1
-#define CONFIG_FIT_ENABLE_SHA256_SUPPORT
+#define CONFIG_FIT_RSASSA_PSS 1
+#define CONFIG_FIT_SHA256
+#define CONFIG_FIT_SHA384
+#define CONFIG_FIT_SHA512
 #define CONFIG_SHA1
 #define CONFIG_SHA256
+#define CONFIG_SHA384
+#define CONFIG_SHA512
 
 #define IMAGE_ENABLE_IGNORE	0
 #define IMAGE_INDENT_STRING	""
@@ -43,6 +47,7 @@ struct fdt_region;
 #include <lmb.h>
 #include <asm/u-boot.h>
 #include <command.h>
+#include <linker_lists.h>
 
 /* Take notice of the 'ignore' property for hashes */
 #define IMAGE_ENABLE_IGNORE	1
@@ -58,19 +63,15 @@ struct fdt_region;
 #include <linux/libfdt.h>
 #include <fdt_support.h>
 # ifdef CONFIG_SPL_BUILD
-#  ifdef CONFIG_SPL_CRC32_SUPPORT
+#  ifdef CONFIG_SPL_CRC32
 #   define IMAGE_ENABLE_CRC32	1
 #  endif
-#  ifdef CONFIG_SPL_MD5_SUPPORT
+#  ifdef CONFIG_SPL_MD5
 #   define IMAGE_ENABLE_MD5	1
-#  endif
-#  ifdef CONFIG_SPL_SHA1_SUPPORT
-#   define IMAGE_ENABLE_SHA1	1
 #  endif
 # else
 #  define IMAGE_ENABLE_CRC32	1
 #  define IMAGE_ENABLE_MD5	1
-#  define IMAGE_ENABLE_SHA1	1
 # endif
 
 #ifndef IMAGE_ENABLE_CRC32
@@ -79,17 +80,6 @@ struct fdt_region;
 
 #ifndef IMAGE_ENABLE_MD5
 #define IMAGE_ENABLE_MD5	0
-#endif
-
-#ifndef IMAGE_ENABLE_SHA1
-#define IMAGE_ENABLE_SHA1	0
-#endif
-
-#if defined(CONFIG_FIT_ENABLE_SHA256_SUPPORT) || \
-	defined(CONFIG_SPL_SHA256_SUPPORT)
-#define IMAGE_ENABLE_SHA256	1
-#else
-#define IMAGE_ENABLE_SHA256	0
 #endif
 
 #endif /* IMAGE_ENABLE_FIT */
@@ -115,6 +105,9 @@ struct fdt_region;
 extern ulong image_load_addr;		/* Default Load Address */
 extern ulong image_save_addr;		/* Default Save Address */
 extern ulong image_save_size;		/* Default Save Size */
+
+/* An invalid size, meaning that the image size is not known */
+#define IMAGE_SIZE_INVAL	(-1UL)
 
 enum ih_category {
 	IH_ARCH,
@@ -290,6 +283,7 @@ enum {
 	IH_TYPE_IMX8MIMAGE,		/* Freescale IMX8MBoot Image	*/
 	IH_TYPE_IMX8IMAGE,		/* Freescale IMX8Boot Image	*/
 	IH_TYPE_COPRO,			/* Coprocessor Image for remoteproc*/
+	IH_TYPE_SUNXI_EGON,		/* Allwinner eGON Boot Image */
 
 	IH_TYPE_COUNT,			/* Number of image types */
 };
@@ -308,6 +302,7 @@ enum {
 	IH_COMP_LZMA,			/* lzma  Compression Used	*/
 	IH_COMP_LZO,			/* lzo   Compression Used	*/
 	IH_COMP_LZ4,			/* lz4   Compression Used	*/
+	IH_COMP_ZSTD,			/* zstd   Compression Used	*/
 
 	IH_COMP_COUNT,
 };
@@ -393,7 +388,7 @@ typedef struct bootm_headers {
 	ulong		initrd_end;
 	ulong		cmdline_start;
 	ulong		cmdline_end;
-	bd_t		*kbd;
+	struct bd_info		*kbd;
 #endif
 
 	int		verify;		/* env_get("verify")[0] != 'n' */
@@ -411,7 +406,7 @@ typedef struct bootm_headers {
 #define	BOOTM_STATE_OS_GO	(0x00000400)
 	int		state;
 
-#ifdef CONFIG_LMB
+#if defined(CONFIG_LMB) && !defined(USE_HOSTCC)
 	struct lmb	lmb;		/* for memory mgmt */
 #endif
 } bootm_headers_t;
@@ -544,10 +539,20 @@ int genimg_get_cat_count(enum ih_category category);
 /**
  * genimg_get_cat_desc() - Get the description of a category
  *
+ * @category:	Category to check
  * @return the description of a category, e.g. "architecture". This
  * effectively converts the enum to a string.
  */
 const char *genimg_get_cat_desc(enum ih_category category);
+
+/**
+ * genimg_cat_has_id() - Check whether a category has an item
+ *
+ * @category:	Category to check
+ * @id:		Item ID
+ * @return true or false as to whether a category has an item
+ */
+bool genimg_cat_has_id(enum ih_category category, uint id);
 
 int genimg_get_os_id(const char *name);
 int genimg_get_arch_id(const char *name);
@@ -736,7 +741,7 @@ int boot_ramdisk_high(struct lmb *lmb, ulong rd_data, ulong rd_len,
 		  ulong *initrd_start, ulong *initrd_end);
 int boot_get_cmdline(struct lmb *lmb, ulong *cmd_start, ulong *cmd_end);
 #ifdef CONFIG_SYS_BOOT_GET_KBD
-int boot_get_kbd(struct lmb *lmb, bd_t **kbd);
+int boot_get_kbd(struct lmb *lmb, struct bd_info **kbd);
 #endif /* CONFIG_SYS_BOOT_GET_KBD */
 #endif /* !USE_HOSTCC */
 
@@ -853,6 +858,11 @@ static inline int image_check_type(const image_header_t *hdr, uint8_t type)
 }
 static inline int image_check_arch(const image_header_t *hdr, uint8_t arch)
 {
+#ifndef USE_HOSTCC
+	/* Let's assume that sandbox can load any architecture */
+	if (IS_ENABLED(CONFIG_SANDBOX))
+		return true;
+#endif
 	return (image_get_arch(hdr) == arch) ||
 		(image_get_arch(hdr) == IH_ARCH_ARM && arch == IH_ARCH_ARM64);
 }
@@ -1098,9 +1108,10 @@ int fit_cipher_data(const char *keydir, void *keydest, void *fit,
  *     0, on success
  *     libfdt error code, on failure
  */
-int fit_add_verification_data(const char *keydir, void *keydest, void *fit,
-			      const char *comment, int require_keys,
-			      const char *engine_id, const char *cmdname);
+int fit_add_verification_data(const char *keydir, const char *keyfile,
+			      void *keydest, void *fit, const char *comment,
+			      int require_keys, const char *engine_id,
+			      const char *cmdname);
 
 int fit_image_verify_with_data(const void *fit, int image_noffset,
 			       const void *data, size_t size);
@@ -1112,7 +1123,23 @@ int fit_image_check_os(const void *fit, int noffset, uint8_t os);
 int fit_image_check_arch(const void *fit, int noffset, uint8_t arch);
 int fit_image_check_type(const void *fit, int noffset, uint8_t type);
 int fit_image_check_comp(const void *fit, int noffset, uint8_t comp);
-int fit_check_format(const void *fit);
+
+/**
+ * fit_check_format() - Check that the FIT is valid
+ *
+ * This performs various checks on the FIT to make sure it is suitable for
+ * use, looking for mandatory properties, nodes, etc.
+ *
+ * If FIT_FULL_CHECK is enabled, it also runs it through libfdt to make
+ * sure that there are no strange tags or broken nodes in the FIT.
+ *
+ * @fit: pointer to the FIT format image header
+ * @return 0 if OK, -ENOEXEC if not an FDT file, -EINVAL if the full FDT check
+ *	failed (e.g. due to bad structure), -ENOMSG if the description is
+ *	missing, -EBADMSG if the timestamp is missing, -ENOENT if the /images
+ *	path is missing
+ */
+int fit_check_format(const void *fit, ulong size);
 
 int fit_conf_find_compat(const void *fit, const void *fdt);
 
@@ -1169,17 +1196,14 @@ int calculate_hash(const void *data, int data_len, const char *algo,
 #if defined(USE_HOSTCC)
 # if defined(CONFIG_FIT_SIGNATURE)
 #  define IMAGE_ENABLE_SIGN	1
-#  define IMAGE_ENABLE_VERIFY	1
 #  define FIT_IMAGE_ENABLE_VERIFY	1
 #  include <openssl/evp.h>
 # else
 #  define IMAGE_ENABLE_SIGN	0
-#  define IMAGE_ENABLE_VERIFY	0
 #  define FIT_IMAGE_ENABLE_VERIFY	0
 # endif
 #else
 # define IMAGE_ENABLE_SIGN	0
-# define IMAGE_ENABLE_VERIFY		CONFIG_IS_ENABLED(RSA_VERIFY)
 # define FIT_IMAGE_ENABLE_VERIFY	CONFIG_IS_ENABLED(FIT_SIGNATURE)
 #endif
 
@@ -1192,17 +1216,19 @@ void image_set_host_blob(void *host_blob);
 # define gd_fdt_blob()		(gd->fdt_blob)
 #endif
 
-#ifdef CONFIG_FIT_BEST_MATCH
-#define IMAGE_ENABLE_BEST_MATCH	1
-#else
-#define IMAGE_ENABLE_BEST_MATCH	0
-#endif
 #endif /* IMAGE_ENABLE_FIT */
 
-/* Information passed to the signing routines */
+/*
+ * Information passed to the signing routines
+ *
+ * Either 'keydir',  'keyname', or 'keyfile' can be NULL. However, either
+ * 'keyfile', or both 'keydir' and 'keyname' should have valid values. If
+ * neither are valid, some operations might fail with EINVAL.
+ */
 struct image_sign_info {
 	const char *keydir;		/* Directory conaining keys */
 	const char *keyname;		/* Name of key to use */
+	const char *keyfile;		/* Filename of private or public key */
 	void *fit;			/* Pointer to FIT blob */
 	int node_offset;		/* Offset of signature node */
 	const char *name;		/* Algorithm name */
@@ -1228,8 +1254,8 @@ struct image_region {
 	int size;
 };
 
-#if IMAGE_ENABLE_VERIFY
-# include <u-boot/rsa-checksum.h>
+#if FIT_IMAGE_ENABLE_VERIFY
+# include <u-boot/hash-checksum.h>
 #endif
 struct checksum_algo {
 	const char *name;
@@ -1296,6 +1322,10 @@ struct crypto_algo {
 		      const struct image_region region[], int region_count,
 		      uint8_t *sig, uint sig_len);
 };
+
+/* Declare a new U-Boot crypto algorithm handler */
+#define U_BOOT_CRYPTO_ALGO(__name)						\
+ll_entry_declare(struct crypto_algo, __name, cryptos)
 
 struct padding_algo {
 	const char *name;
@@ -1444,7 +1474,7 @@ struct cipher_algo {
 		       unsigned char **cipher, int *cipher_len);
 
 	int (*add_cipher_data)(struct image_cipher_info *info,
-			       void *keydest);
+			       void *keydest, void *fit, int node_noffset);
 
 	int (*decrypt)(struct image_cipher_info *info,
 		       const void *cipher, size_t cipher_len,
@@ -1507,8 +1537,6 @@ bool android_image_print_dtb_contents(ulong hdr_addr);
  */
 int board_fit_config_name_match(const char *name);
 
-#if defined(CONFIG_SPL_FIT_IMAGE_POST_PROCESS) || \
-	defined(CONFIG_FIT_IMAGE_POST_PROCESS)
 /**
  * board_fit_image_post_process() - Do any post-process on FIT binary data
  *
@@ -1518,12 +1546,14 @@ int board_fit_config_name_match(const char *name);
  * into the FIT creation (i.e. the binary blobs would have been pre-processed
  * before being added to the FIT image).
  *
+ * @fit: pointer to fit image
+ * @node: offset of image node
  * @image: pointer to the image start pointer
  * @size: pointer to the image size
  * @return no return value (failure should be handled internally)
  */
-void board_fit_image_post_process(void **p_image, size_t *p_size);
-#endif /* CONFIG_SPL_FIT_IMAGE_POST_PROCESS */
+void board_fit_image_post_process(const void *fit, int node, void **p_image,
+				  size_t *p_size);
 
 #define FDT_ERROR	((ulong)(-1))
 
@@ -1572,5 +1602,17 @@ struct fit_loadable_tbl {
 		.type = _type, \
 		.handler = _handler, \
 	}
+
+/**
+ * fit_update - update storage with FIT image
+ * @fit:        Pointer to FIT image
+ *
+ * Update firmware on storage using FIT image as input.
+ * The storage area to be update will be identified by the name
+ * in FIT and matching it to "dfu_alt_info" variable.
+ *
+ * Return:      0 on success, non-zero otherwise
+ */
+int fit_update(const void *fit);
 
 #endif	/* __IMAGE_H__ */
