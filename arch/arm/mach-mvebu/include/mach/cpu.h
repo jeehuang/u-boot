@@ -74,10 +74,11 @@ enum {
 /*
  * Default Device Address MAP BAR values
  */
+#define MBUS_PCI_MAX_PORTS	6
 #define MBUS_PCI_MEM_BASE	MVEBU_SDRAM_SIZE_MAX
-#define MBUS_PCI_MEM_SIZE	(128 << 20)
+#define MBUS_PCI_MEM_SIZE	((MBUS_PCI_MAX_PORTS * 128) << 20)
 #define MBUS_PCI_IO_BASE	0xF1100000
-#define MBUS_PCI_IO_SIZE	(64 << 10)
+#define MBUS_PCI_IO_SIZE	((MBUS_PCI_MAX_PORTS * 64) << 10)
 #define MBUS_SPI_BASE		0xF4000000
 #define MBUS_SPI_SIZE		(8 << 20)
 #define MBUS_DFX_BASE		0xF6000000
@@ -147,6 +148,8 @@ void __noreturn return_to_bootrom(void);
 #ifndef CONFIG_DM_MMC
 int mv_sdh_init(unsigned long regbase, u32 max_clk, u32 min_clk, u32 quirks);
 #endif
+
+u32 get_boot_device(void);
 
 void get_sar_freq(struct sar_freq_modes *sar_freq);
 

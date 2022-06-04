@@ -1,6 +1,10 @@
 source "drivers/net/phy/Kconfig"
 source "drivers/net/pfe_eth/Kconfig"
 source "drivers/net/fsl-mc/Kconfig"
+source "drivers/net/bnxt/Kconfig"
+
+config ETH
+	def_bool y
 
 config DM_ETH
 	bool "Enable Driver Model for Ethernet drivers"
@@ -187,6 +191,11 @@ config CALXEDA_XGMAC
 	  This driver supports the XGMAC in Calxeda Highbank and Midway
 	  machines.
 
+config DRIVER_DM9000
+	bool "Davicom DM9000 controller driver"
+	help
+	  The Davicom DM9000 parallel bus external ethernet interface chip.
+
 config DWC_ETH_QOS
 	bool "Synopsys DWC Ethernet QOS device support"
 	depends on DM_ETH
@@ -222,7 +231,7 @@ config DWC_ETH_QOS_TEGRA186
 
 config E1000
 	bool "Intel PRO/1000 Gigabit Ethernet support"
-	depends on (DM_ETH && DM_PCI) || !DM_ETH
+	depends on PCI
 	help
 	  This driver supports Intel(R) PRO/1000 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -342,6 +351,16 @@ config FMAN_ENET
 	help
 	  This driver support the Freescale FMan Ethernet controller
 
+config SYS_FMAN_FW_ADDR
+	hex "FMAN Firmware Address"
+	depends on FMAN_ENET
+	default 0x0
+
+config SYS_QE_FMAN_FW_LENGTH
+	hex "FMAN QE Firmware length"
+	depends on FMAN_ENET || QE || U_QE
+	default 0x10000
+
 config FTMAC100
 	bool "Ftmac100 Ethernet Support"
 	help
@@ -410,6 +429,11 @@ config KSZ9477
 	  This driver implements a DSA switch driver for the KSZ9477 family
 	  of GbE switches using the I2C interface.
 
+config LPC32XX_ETH
+	bool "LPC32xx Ethernet MAC interface driver"
+	depends on ARCH_LPC32XX
+	default y
+
 config MVGBE
 	bool "Marvell Orion5x/Kirkwood network interface support"
 	depends on ARCH_KIRKWOOD || ARCH_ORION5X
@@ -422,6 +446,7 @@ config MVNETA
 	bool "Marvell Armada XP/385/3700 network interface support"
 	depends on ARMADA_XP || ARMADA_38X || ARMADA_3700
 	select PHYLIB
+	select DM_MDIO
 	help
 	  This driver supports the network interface units in the
 	  Marvell ARMADA XP, ARMADA 38X and ARMADA 3700 SoCs
@@ -438,7 +463,6 @@ config MVPP2
 
 config MACB
 	bool "Cadence MACB/GEM Ethernet Interface"
-	depends on DM_ETH
 	select PHYLIB
 	help
 	  The Cadence MACB ethernet interface is found on many Atmel
@@ -473,6 +497,13 @@ config MT7628_ETH
 	  The MediaTek MT7628 ethernet interface is used on MT7628 and
 	  MT7688 based boards.
 
+config NET_OCTEON
+	bool "MIPS Octeon ethernet support"
+	depends on ARCH_OCTEON
+	help
+	  You must select Y to enable network device support for
+	  MIPS Octeon SoCs. If unsure, say n
+
 config NET_OCTEONTX
 	bool "OcteonTX Ethernet support"
 	depends on ARCH_OCTEONTX
@@ -506,7 +537,7 @@ config OCTEONTX2_CGX_INTF
 
 config PCH_GBE
 	bool "Intel Platform Controller Hub EG20T GMAC driver"
-	depends on DM_ETH && DM_PCI
+	depends on DM_ETH
 	select PHYLIB
 	help
 	  This MAC is present in Intel Platform Controller Hub EG20T. It
@@ -522,6 +553,11 @@ config MII
 	bool "Enable MII"
 	help
 	  Enable support of the Media-Independent Interface (MII)
+
+config RMII
+	bool "Enable RMII"
+	help
+	  Enable support of the Reduced Media-Independent Interface (MII)
 
 config PCNET
 	bool "AMD PCnet series Ethernet controller driver"
@@ -543,6 +579,22 @@ config RTL8169
 	  This driver supports Realtek 8169 series gigabit ethernet family of
 	  PCI/PCIe chipsets/adapters.
 
+config SJA1105
+	bool "NXP SJA1105 Ethernet switch family driver"
+	depends on DM_DSA && DM_SPI
+	select BITREVERSE
+	help
+	  This is the driver for the NXP SJA1105 automotive Ethernet switch
+	  family. These are 5-port devices and are managed over an SPI
+	  interface. Probing is handled based on OF bindings. The driver
+	  supports the following revisions:
+	    - SJA1105E (Gen. 1, No TT-Ethernet)
+	    - SJA1105T (Gen. 1, TT-Ethernet)
+	    - SJA1105P (Gen. 2, No SGMII, No TT-Ethernet)
+	    - SJA1105Q (Gen. 2, No SGMII, TT-Ethernet)
+	    - SJA1105R (Gen. 2, SGMII, No TT-Ethernet)
+	    - SJA1105S (Gen. 2, SGMII, TT-Ethernet)
+
 config SMC911X
 	bool "SMSC LAN911x and LAN921x controller driver"
 
@@ -558,7 +610,6 @@ endif #DM_ETH
 
 config SMC911X_32_BIT
 	bool "Enable SMC911X 32-bit interface"
-	default n
 	help
 	  Define this if data bus is 32 bits. If your processor use a
 	  narrower 16 bit bus or cannot convert one 32 bit word to two 16 bit
@@ -606,7 +657,6 @@ source "drivers/net/ti/Kconfig"
 
 config TULIP
 	bool "DEC Tulip DC2114x Ethernet support"
-	depends on (DM_ETH && DM_PCI) || !DM_ETH
 	help
 	  This driver supports DEC DC2114x Fast ethernet chips.
 
@@ -713,7 +763,6 @@ config FEC1_PHY
 config PHY_NORXERR
 	bool "PHY_NORXERR"
 	depends on ETHER_ON_FEC1
-	default n
 	help
 	  The PHY does not have a RXERR line (RMII only).
 	  (so program the FEC to ignore it).
@@ -738,7 +787,6 @@ config FEC2_PHY
 config FEC2_PHY_NORXERR
 	bool "PHY_NORXERR"
 	depends on ETHER_ON_FEC2
-	default n
 	help
 	  The PHY does not have a RXERR line (RMII only).
 	  (so program the FEC to ignore it).
@@ -791,7 +839,7 @@ config HIGMACV300_ETH
 
 config FSL_ENETC
 	bool "NXP ENETC Ethernet controller"
-	depends on DM_PCI && DM_ETH && DM_MDIO
+	depends on DM_ETH && DM_MDIO
 	help
 	  This driver supports the NXP ENETC Ethernet controller found on some
 	  of the NXP SoCs.
@@ -827,6 +875,13 @@ config FSL_LS_MDIO
 	help
 	  This driver supports the MDIO bus found on the Fman 10G Ethernet MACs and
 	  on the mEMAC (which supports both Clauses 22 and 45).
+
+config ASPEED_MDIO
+	bool "Aspeed MDIO interface support"
+	depends on DM_MDIO
+	help
+	  This driver supports the MDIO bus of Aspeed AST2600 SOC.  The driver
+	  currently supports Clause 22.
 
 config MDIO_MUX_MMIOREG
 	bool "MDIO MUX accessed as a MMIO register access"

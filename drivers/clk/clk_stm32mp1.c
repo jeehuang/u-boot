@@ -27,11 +27,9 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#ifndef CONFIG_TFABOOT
-#if !defined(CONFIG_SPL) || defined(CONFIG_SPL_BUILD)
+#if defined(CONFIG_SPL_BUILD)
 /* activate clock tree initialization in the driver */
 #define STM32MP1_CLOCK_TREE_INIT
-#endif
 #endif
 
 #define MAX_HSI_HZ		64000000
@@ -2207,7 +2205,7 @@ static void stm32mp1_osc_init(struct udevice *dev)
 
 	for (i = 0; i < NB_OSC; i++) {
 		if (clk_get_by_name(dev, name[i], &priv->osc_clk[i]))
-			dev_dbg(dev, "No source clock \"%s\"", name[i]);
+			dev_dbg(dev, "No source clock \"%s\"\n", name[i]);
 		else
 			dev_dbg(dev, "%s clock rate: %luHz\n",
 				name[i], clk_get_rate(&priv->osc_clk[i]));

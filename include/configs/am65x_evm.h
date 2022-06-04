@@ -19,8 +19,7 @@
 
 /* SPL Loader Configuration */
 #ifdef CONFIG_TARGET_AM654_A53_EVM
-#define CONFIG_SYS_INIT_SP_ADDR         (CONFIG_SPL_TEXT_BASE +	\
-					 CONFIG_SYS_K3_NON_SECURE_MSRAM_SIZE)
+#define CONFIG_SYS_INIT_SP_ADDR         (CONFIG_SPL_TEXT_BASE + SZ_4M)
 #else
 /*
  * Maximum size in memory allocated to the SPL BSS. Keep it as tight as
@@ -47,10 +46,6 @@
 
 #ifdef CONFIG_SYS_K3_SPL_ATF
 #define CONFIG_SPL_FS_LOAD_PAYLOAD_NAME	"tispl.bin"
-#endif
-
-#ifndef CONFIG_CPU_V7R
-#define CONFIG_SKIP_LOWLEVEL_INIT
 #endif
 
 #define CONFIG_SPL_MAX_SIZE		CONFIG_SYS_K3_MAX_DOWNLODABLE_IMAGE_SIZE

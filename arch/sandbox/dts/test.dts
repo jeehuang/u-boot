@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Devicetree file for running sandbox tests
+ *
+ * This includes lots of extra devices used by various tests.
+ *
+ * Note that SPL use the main sandbox.dts file
+ */
+
 /dts-v1/;
 
 #include <dt-bindings/gpio/gpio.h>
@@ -52,10 +61,31 @@
 		osd0 = "/osd";
 	};
 
+	binman {
+	};
+
 	config {
+		testing-bool;
+		testing-int = <123>;
+		testing-str = "testing";
 		environment {
 			from_fdt = "yes";
 			fdt_env_path = "";
+		};
+	};
+
+	bootstd {
+		compatible = "u-boot,boot-std";
+
+		filename-prefixes = "/", "/boot/";
+		bootdev-order = "mmc2", "mmc1";
+
+		syslinux {
+			compatible = "u-boot,distro-syslinux";
+		};
+
+		efi {
+			compatible = "u-boot,distro-efi";
 		};
 	};
 
@@ -195,6 +225,7 @@
 		test4-gpios = <&gpio_a 14>, <&gpio_b 4 1 3 2 1>;
 		test5-gpios = <&gpio_a 19>;
 
+		bool-value;
 		int-value = <1234>;
 		uint-value = <(-1234)>;
 		int64-value = /bits/ 64 <0x1111222233334444>;
@@ -486,6 +517,10 @@
 		compatible = "sandbox,clk-ccf";
 	};
 
+	efi-media {
+		compatible = "sandbox,efi-media";
+	};
+
 	eth@10002000 {
 		compatible = "sandbox,eth";
 		reg = <0x10002000 0x1000>;
@@ -508,6 +543,14 @@
 		compatible = "sandbox,eth";
 		reg = <0x10004000 0x1000>;
 		fake-host-hwaddr = [00 00 66 44 22 22];
+	};
+
+	phy_eth0: phy-test-eth {
+		compatible = "sandbox,eth";
+		reg = <0x10007000 0x1000>;
+		fake-host-hwaddr = [00 00 66 44 22 77];
+		phy-handle = <&ethphy1>;
+		phy-mode = "2500base-x";
 	};
 
 	dsa_eth0: dsa-test-eth {
@@ -557,17 +600,21 @@
 			compatible = "sandbox,firmware";
 		};
 
-		sandbox-scmi-agent@0 {
+		scmi {
 			compatible = "sandbox,scmi-agent";
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			clk_scmi0: protocol@14 {
+			protocol@10 {
+				reg = <0x10>;
+			};
+
+			clk_scmi: protocol@14 {
 				reg = <0x14>;
 				#clock-cells = <1>;
 			};
 
-			reset_scmi0: protocol@16 {
+			reset_scmi: protocol@16 {
 				reg = <0x16>;
 				#reset-cells = <1>;
 			};
@@ -579,33 +626,18 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					regul0_scmi0: reg@0 {
+					regul0_scmi: reg@0 {
 						reg = <0>;
 						regulator-name = "sandbox-voltd0";
 						regulator-min-microvolt = <1100000>;
 						regulator-max-microvolt = <3300000>;
 					};
-					regul1_scmi0: reg@1 {
+					regul1_scmi: reg@1 {
 						reg = <0x1>;
 						regulator-name = "sandbox-voltd1";
 						regulator-min-microvolt = <1800000>;
 					};
 				};
-			};
-		};
-
-		sandbox-scmi-agent@1 {
-			compatible = "sandbox,scmi-agent";
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			clk_scmi1: protocol@14 {
-				reg = <0x14>;
-				#clock-cells = <1>;
-			};
-
-			protocol@10 {
-				reg = <0x10>;
 			};
 		};
 	};
@@ -731,11 +763,30 @@
 		i2c-eeprom = <&bootcount_i2c>;
 	};
 
+	bootcount_4@0 {
+		compatible = "u-boot,bootcount-syscon";
+		syscon = <&syscon0>;
+		reg = <0x0 0x04>, <0x0 0x04>;
+		reg-names = "syscon_reg", "offset";
+	};
+
+	bootcount_2@0 {
+		compatible = "u-boot,bootcount-syscon";
+		syscon = <&syscon0>;
+		reg = <0x0 0x04>, <0x0 0x02> ;
+		reg-names = "syscon_reg", "offset";
+	};
+
 	adc: adc@0 {
 		compatible = "sandbox,adc";
 		#io-channel-cells = <1>;
 		vdd-supply = <&buck2>;
 		vss-microvolts = <0>;
+	};
+
+	iommu: iommu@0 {
+		compatible = "sandbox,iommu";
+		#iommu-cells = <0>;
 	};
 
 	irq: irq {
@@ -779,6 +830,13 @@
 		};
 	};
 
+	gpio-wdt {
+		gpios = <&gpio_a 7 0>;
+		compatible = "linux,wdt-gpio";
+		hw_margin_ms = <100>;
+		always-running;
+	};
+
 	mbox: mbox {
 		compatible = "sandbox,mbox";
 		#mbox-cells = <1>;
@@ -791,19 +849,27 @@
 	};
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		timebase-frequency = <2000000>;
-		cpu-test1 {
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			reg = <0x1>;
 			timebase-frequency = <3000000>;
 			compatible = "sandbox,cpu_sandbox";
 			u-boot,dm-pre-reloc;
 		};
 
-		cpu-test2 {
+		cpu2: cpu@2 {
+			device_type = "cpu";
+			reg = <0x2>;
 			compatible = "sandbox,cpu_sandbox";
 			u-boot,dm-pre-reloc;
 		};
 
-		cpu-test3 {
+		cpu3: cpu@3 {
+			device_type = "cpu";
+			reg = <0x3>;
 			compatible = "sandbox,cpu_sandbox";
 			u-boot,dm-pre-reloc;
 		};
@@ -840,10 +906,13 @@
 		non-removable;
 	};
 
+	/* This is used for the bootdev tests */
 	mmc1 {
 		compatible = "sandbox,mmc";
+		filename = "mmc1.img";
 	};
 
+	/* This is used for the fastboot tests */
 	mmc0 {
 		compatible = "sandbox,mmc";
 	};
@@ -928,7 +997,7 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 		ranges = <0x02000000 0 0x30000000 0x30000000 0 0x2000 // MEM0
-			  0x02000000 0 0x31000000 0x31000000 0 0x2000 // MEM1
+			  0x02000000 0 0x31000000 0x3e000000 0 0x2000 // MEM1
 			  0x01000000 0 0x40000000 0x40000000 0 0x2000>;
 		sandbox,dev-info = <0x08 0x00 0x1234 0x5678
 				    0x0c 0x00 0x1234 0x5678
@@ -1185,6 +1254,7 @@
 
 	usb_1: usb@1 {
 		compatible = "sandbox,usb";
+		iommus = <&iommu>;
 		hub {
 			compatible = "usb-hub";
 			usb,device-class = <9>;
@@ -1258,6 +1328,7 @@
 
 	wdt0: wdt@0 {
 		compatible = "sandbox,wdt";
+		hw_margin_ms = <200>;
 	};
 
 	axi: axi@0 {
@@ -1350,10 +1421,10 @@
 
 	sandbox_scmi {
 		compatible = "sandbox,scmi-devices";
-		clocks = <&clk_scmi0 7>, <&clk_scmi0 3>, <&clk_scmi1 1>;
-		resets = <&reset_scmi0 3>;
-		regul0-supply = <&regul0_scmi0>;
-		regul1-supply = <&regul1_scmi0>;
+		clocks = <&clk_scmi 2>, <&clk_scmi 0>;
+		resets = <&reset_scmi 3>;
+		regul0-supply = <&regul0_scmi>;
+		regul1-supply = <&regul1_scmi>;
 	};
 
 	pinctrl {
@@ -1510,6 +1581,12 @@
 
 	mdio: mdio-test {
 		compatible = "sandbox,mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy1: ethernet-phy@1 {
+			reg = <1>;
+		};
 	};
 
 	pm-bus-test {

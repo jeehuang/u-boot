@@ -7,20 +7,15 @@
 #ifndef __CONFIG_SOCFPGA_SOC64_COMMON_H__
 #define __CONFIG_SOCFPGA_SOC64_COMMON_H__
 
-#include <asm/arch/base_addr_s10.h>
+#include <asm/arch/base_addr_soc64.h>
 #include <asm/arch/handoff_soc64.h>
 #include <linux/stringify.h>
 
 /*
  * U-Boot general configurations
  */
-#define CONFIG_SYS_MONITOR_BASE		CONFIG_SYS_TEXT_BASE
-#define CONFIG_LOADADDR			0x2000000
-#define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
-#define CONFIG_REMAKE_ELF
 /* sysmgr.boot_scratch_cold4 & 5 (64bit) will be used for PSCI_CPU_ON call */
 #define CPU_RELEASE_ADDR		0xFFD12210
-#define CONFIG_SYS_CACHELINE_SIZE	64
 
 /*
  * U-Boot console configurations
@@ -48,7 +43,6 @@
 					+ 0x100000)
 #endif
 #define CONFIG_SYS_INIT_SP_OFFSET	(CONFIG_SYS_INIT_SP_ADDR)
-#define CONFIG_SYS_MALLOC_LEN		(5 * 1024 * 1024)
 
 /*
  * U-Boot environment configurations
@@ -63,30 +57,15 @@
 
 /* Flash device info */
 
-/*#define CONFIG_ENV_IS_IN_SPI_FLASH*/
-
 #ifndef CONFIG_SPL_BUILD
-#define CONFIG_MTD_PARTITIONS
 #define MTDIDS_DEFAULT			"nor0=ff705000.spi.0"
 #endif /* CONFIG_SPL_BUILD */
-
-#ifndef __ASSEMBLY__
-unsigned int cm_get_qspi_controller_clk_hz(void);
-#define CONFIG_CQSPI_REF_CLK		cm_get_qspi_controller_clk_hz()
-#endif
 
 #endif /* CONFIG_CADENCE_QSPI */
 
 /*
  * Environment variable
  */
-
-#ifdef CONFIG_FIT
-#define CONFIG_BOOTFILE "kernel.itb"
-#else
-#define CONFIG_BOOTFILE "Image"
-#endif
-
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"loadaddr=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
 	"bootfile=" CONFIG_BOOTFILE "\0" \
@@ -117,11 +96,6 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
 	"socfpga_legacy_reset_compat=1\0"
 
 /*
- * Generic Interrupt Controller Definitions
- */
-#define CONFIG_GICV2
-
-/*
  * External memory configurations
  */
 #define PHYS_SDRAM_1			0x0
@@ -135,11 +109,6 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
 #define CONFIG_SYS_NS16550_MEM32
 
 /*
- * Timer & watchdog configurations
- */
-#define COUNTER_FREQUENCY		400000000
-
-/*
  * SDMMC configurations
  */
 #ifdef CONFIG_CMD_MMC
@@ -148,7 +117,6 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
 /*
  * Flash configurations
  */
-#define CONFIG_SYS_MAX_FLASH_BANKS	1
 
 /* Ethernet on SoC (EMAC) */
 #if defined(CONFIG_CMD_NET)
@@ -158,10 +126,6 @@ unsigned int cm_get_qspi_controller_clk_hz(void);
 /*
  * L4 Watchdog
  */
-#ifndef CONFIG_SPL_BUILD
-#undef CONFIG_HW_WATCHDOG
-#undef CONFIG_DESIGNWARE_WATCHDOG
-#endif
 #define CONFIG_DW_WDT_BASE		SOCFPGA_L4WD0_ADDRESS
 #ifdef CONFIG_TARGET_SOCFPGA_STRATIX10
 #ifndef __ASSEMBLY__

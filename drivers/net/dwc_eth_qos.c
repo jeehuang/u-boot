@@ -270,7 +270,7 @@ struct eqos_config {
 	int config_mac;
 	int config_mac_mdio;
 	unsigned int axi_bus_width;
-	phy_interface_t (*interface)(struct udevice *dev);
+	phy_interface_t (*interface)(const struct udevice *dev);
 	struct eqos_ops *ops;
 };
 
@@ -1045,16 +1045,10 @@ static int eqos_start(struct udevice *dev)
 	eqos->tx_desc_idx = 0;
 	eqos->rx_desc_idx = 0;
 
-	ret = eqos->config->ops->eqos_start_clks(dev);
-	if (ret < 0) {
-		pr_err("eqos_start_clks() failed: %d", ret);
-		goto err;
-	}
-
 	ret = eqos->config->ops->eqos_start_resets(dev);
 	if (ret < 0) {
 		pr_err("eqos_start_resets() failed: %d", ret);
-		goto err_stop_clks;
+		goto err;
 	}
 
 	udelay(10);
@@ -1360,8 +1354,6 @@ err_shutdown_phy:
 	phy_shutdown(eqos->phy);
 err_stop_resets:
 	eqos->config->ops->eqos_stop_resets(dev);
-err_stop_clks:
-	eqos->config->ops->eqos_stop_clks(dev);
 err:
 	pr_err("FAILED: %d", ret);
 	return ret;
@@ -1416,7 +1408,6 @@ static void eqos_stop(struct udevice *dev)
 		phy_shutdown(eqos->phy);
 	}
 	eqos->config->ops->eqos_stop_resets(dev);
-	eqos->config->ops->eqos_stop_clks(dev);
 
 	debug("%s: OK\n", __func__);
 }
@@ -1691,7 +1682,7 @@ static int eqos_probe_resources_stm32(struct udevice *dev)
 
 	interface = eqos->config->interface(dev);
 
-	if (interface == PHY_INTERFACE_MODE_NONE) {
+	if (interface == PHY_INTERFACE_MODE_NA) {
 		pr_err("Invalid PHY interface\n");
 		return -EINVAL;
 	}
@@ -1738,21 +1729,7 @@ err_probe:
 	return ret;
 }
 
-static phy_interface_t eqos_get_interface_stm32(struct udevice *dev)
-{
-	const char *phy_mode;
-	phy_interface_t interface = PHY_INTERFACE_MODE_NONE;
-
-	debug("%s(dev=%p):\n", __func__, dev);
-
-	phy_mode = dev_read_prop(dev, "phy-mode", NULL);
-	if (phy_mode)
-		interface = phy_get_interface_by_name(phy_mode);
-
-	return interface;
-}
-
-static phy_interface_t eqos_get_interface_tegra186(struct udevice *dev)
+static phy_interface_t eqos_get_interface_tegra186(const struct udevice *dev)
 {
 	return PHY_INTERFACE_MODE_MII;
 }
@@ -1766,27 +1743,13 @@ static int eqos_probe_resources_imx(struct udevice *dev)
 
 	interface = eqos->config->interface(dev);
 
-	if (interface == PHY_INTERFACE_MODE_NONE) {
+	if (interface == PHY_INTERFACE_MODE_NA) {
 		pr_err("Invalid PHY interface\n");
 		return -EINVAL;
 	}
 
 	debug("%s: OK\n", __func__);
 	return 0;
-}
-
-static phy_interface_t eqos_get_interface_imx(struct udevice *dev)
-{
-	const char *phy_mode;
-	phy_interface_t interface = PHY_INTERFACE_MODE_NONE;
-
-	debug("%s(dev=%p):\n", __func__, dev);
-
-	phy_mode = dev_read_prop(dev, "phy-mode", NULL);
-	if (phy_mode)
-		interface = phy_get_interface_by_name(phy_mode);
-
-	return interface;
 }
 
 static int eqos_remove_resources_tegra186(struct udevice *dev)
@@ -1862,6 +1825,12 @@ static int eqos_probe(struct udevice *dev)
 		goto err_remove_resources_core;
 	}
 
+	ret = eqos->config->ops->eqos_start_clks(dev);
+	if (ret < 0) {
+		pr_err("eqos_start_clks() failed: %d", ret);
+		goto err_remove_resources_tegra;
+	}
+
 #ifdef CONFIG_DM_ETH_PHY
 	eqos->mii = eth_phy_get_mdio_bus(dev);
 #endif
@@ -1870,7 +1839,7 @@ static int eqos_probe(struct udevice *dev)
 		if (!eqos->mii) {
 			pr_err("mdio_alloc() failed");
 			ret = -ENOMEM;
-			goto err_remove_resources_tegra;
+			goto err_stop_clks;
 		}
 		eqos->mii->read = eqos_mdio_read;
 		eqos->mii->write = eqos_mdio_write;
@@ -1893,6 +1862,8 @@ static int eqos_probe(struct udevice *dev)
 
 err_free_mdio:
 	mdio_free(eqos->mii);
+err_stop_clks:
+	eqos->config->ops->eqos_stop_clks(dev);
 err_remove_resources_tegra:
 	eqos->config->ops->eqos_remove_resources(dev);
 err_remove_resources_core:
@@ -1910,6 +1881,7 @@ static int eqos_remove(struct udevice *dev)
 
 	mdio_unregister(eqos->mii);
 	mdio_free(eqos->mii);
+	eqos->config->ops->eqos_stop_clks(dev);
 	eqos->config->ops->eqos_remove_resources(dev);
 
 	eqos_probe_resources_core(dev);
@@ -1985,7 +1957,7 @@ static const struct eqos_config __maybe_unused eqos_stm32_config = {
 	.config_mac = EQOS_MAC_RXQ_CTRL0_RXQ0EN_ENABLED_AV,
 	.config_mac_mdio = EQOS_MAC_MDIO_ADDRESS_CR_250_300,
 	.axi_bus_width = EQOS_AXI_WIDTH_64,
-	.interface = eqos_get_interface_stm32,
+	.interface = dev_read_phy_mode,
 	.ops = &eqos_stm32_ops
 };
 
@@ -2013,7 +1985,7 @@ struct eqos_config __maybe_unused eqos_imx_config = {
 	.config_mac = EQOS_MAC_RXQ_CTRL0_RXQ0EN_ENABLED_DCB,
 	.config_mac_mdio = EQOS_MAC_MDIO_ADDRESS_CR_250_300,
 	.axi_bus_width = EQOS_AXI_WIDTH_64,
-	.interface = eqos_get_interface_imx,
+	.interface = dev_read_phy_mode,
 	.ops = &eqos_imx_ops
 };
 
@@ -2032,7 +2004,7 @@ static const struct udevice_id eqos_ids[] = {
 #endif
 #if IS_ENABLED(CONFIG_DWC_ETH_QOS_IMX)
 	{
-		.compatible = "fsl,imx-eqos",
+		.compatible = "nxp,imx8mp-dwmac-eqos",
 		.data = (ulong)&eqos_imx_config
 	},
 #endif

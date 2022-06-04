@@ -14,8 +14,6 @@
 #include <log.h>
 #include <miiphy.h>
 #include <mtd.h>
-#include <net.h>
-#include <netdev.h>
 #include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/arch/cpu.h>
@@ -25,10 +23,10 @@
 #include <time.h>
 #include <linux/bitops.h>
 #include <u-boot/crc.h>
-# include <atsha204a-i2c.h>
 
 #include "../drivers/ddr/marvell/a38x/ddr3_init.h"
 #include <../serdes/a38x/high_speed_env_spec.h>
+#include "../turris_atsha_otp.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -43,6 +41,23 @@ DECLARE_GLOBAL_DATA_PTR;
 #define OMNIA_I2C_EEPROM_CHIP_LEN	2
 #define OMNIA_I2C_EEPROM_MAGIC		0x0341a034
 
+#define A385_SYS_RSTOUT_MASK		MVEBU_REGISTER(0x18260)
+#define   A385_SYS_RSTOUT_MASK_WD	BIT(10)
+
+#define A385_WDT_GLOBAL_CTRL		MVEBU_REGISTER(0x20300)
+#define   A385_WDT_GLOBAL_RATIO_MASK	GENMASK(18, 16)
+#define   A385_WDT_GLOBAL_RATIO_SHIFT	16
+#define   A385_WDT_GLOBAL_25MHZ		BIT(10)
+#define   A385_WDT_GLOBAL_ENABLE	BIT(8)
+
+#define A385_WDT_GLOBAL_STATUS		MVEBU_REGISTER(0x20304)
+#define   A385_WDT_GLOBAL_EXPIRED	BIT(31)
+
+#define A385_WDT_DURATION		MVEBU_REGISTER(0x20334)
+
+#define A385_WD_RSTOUT_UNMASK		MVEBU_REGISTER(0x20704)
+#define   A385_WD_RSTOUT_UNMASK_GLOBAL	BIT(8)
+
 enum mcu_commands {
 	CMD_GET_STATUS_WORD	= 0x01,
 	CMD_GET_RESET		= 0x09,
@@ -53,11 +68,6 @@ enum status_word_bits {
 	CARD_DET_STSBIT		= 0x0010,
 	MSATA_IND_STSBIT	= 0x0020,
 };
-
-#define OMNIA_ATSHA204_OTP_VERSION	0
-#define OMNIA_ATSHA204_OTP_SERIAL	1
-#define OMNIA_ATSHA204_OTP_MAC0		3
-#define OMNIA_ATSHA204_OTP_MAC1		4
 
 /*
  * Those values and defines are taken from the Marvell U-Boot version
@@ -76,17 +86,8 @@ enum status_word_bits {
 #define OMNIA_GPP_POL_LOW	0x0
 #define OMNIA_GPP_POL_MID	0x0
 
-static struct serdes_map board_serdes_map_pex[] = {
+static struct serdes_map board_serdes_map[] = {
 	{PEX0, SERDES_SPEED_5_GBPS, PEX_ROOT_COMPLEX_X1, 0, 0},
-	{USB3_HOST0, SERDES_SPEED_5_GBPS, SERDES_DEFAULT_MODE, 0, 0},
-	{PEX1, SERDES_SPEED_5_GBPS, PEX_ROOT_COMPLEX_X1, 0, 0},
-	{USB3_HOST1, SERDES_SPEED_5_GBPS, SERDES_DEFAULT_MODE, 0, 0},
-	{PEX2, SERDES_SPEED_5_GBPS, PEX_ROOT_COMPLEX_X1, 0, 0},
-	{SGMII2, SERDES_SPEED_1_25_GBPS, SERDES_DEFAULT_MODE, 0, 0}
-};
-
-static struct serdes_map board_serdes_map_sata[] = {
-	{SATA0, SERDES_SPEED_6_GBPS, SERDES_DEFAULT_MODE, 0, 0},
 	{USB3_HOST0, SERDES_SPEED_5_GBPS, SERDES_DEFAULT_MODE, 0, 0},
 	{PEX1, SERDES_SPEED_5_GBPS, PEX_ROOT_COMPLEX_X1, 0, 0},
 	{USB3_HOST1, SERDES_SPEED_5_GBPS, SERDES_DEFAULT_MODE, 0, 0},
@@ -129,7 +130,6 @@ static int omnia_mcu_read(u8 cmd, void *buf, int len)
 	return dm_i2c_read(chip, cmd, buf, len);
 }
 
-#ifndef CONFIG_SPL_BUILD
 static int omnia_mcu_write(u8 cmd, const void *buf, int len)
 {
 	struct udevice *chip;
@@ -140,6 +140,47 @@ static int omnia_mcu_write(u8 cmd, const void *buf, int len)
 		return -ENODEV;
 
 	return dm_i2c_write(chip, cmd, buf, len);
+}
+
+static void enable_a385_watchdog(unsigned int timeout_minutes)
+{
+	struct sar_freq_modes sar_freq;
+	u32 watchdog_freq;
+
+	printf("Enabling A385 watchdog with %u minutes timeout...\n",
+	       timeout_minutes);
+
+	/*
+	 * Use NBCLK clock (a.k.a. L2 clock) as watchdog input clock with
+	 * its maximal ratio 7 instead of default fixed 25 MHz clock.
+	 * It allows to set watchdog duration up to the 22 minutes.
+	 */
+	clrsetbits_32(A385_WDT_GLOBAL_CTRL,
+		      A385_WDT_GLOBAL_25MHZ | A385_WDT_GLOBAL_RATIO_MASK,
+		      7 << A385_WDT_GLOBAL_RATIO_SHIFT);
+
+	/*
+	 * Calculate watchdog clock frequency. It is defined by formula:
+	 *   freq = NBCLK / 2 / (2 ^ ratio)
+	 * We set ratio to the maximal possible value 7.
+	 */
+	get_sar_freq(&sar_freq);
+	watchdog_freq = sar_freq.nb_clk * 1000000 / 2 / (1 << 7);
+
+	/* Set watchdog duration */
+	writel(timeout_minutes * 60 * watchdog_freq, A385_WDT_DURATION);
+
+	/* Clear the watchdog expiration bit */
+	clrbits_32(A385_WDT_GLOBAL_STATUS, A385_WDT_GLOBAL_EXPIRED);
+
+	/* Enable watchdog timer */
+	setbits_32(A385_WDT_GLOBAL_CTRL, A385_WDT_GLOBAL_ENABLE);
+
+	/* Enable reset on watchdog */
+	setbits_32(A385_WD_RSTOUT_UNMASK, A385_WD_RSTOUT_UNMASK_GLOBAL);
+
+	/* Unmask reset for watchdog */
+	clrbits_32(A385_SYS_RSTOUT_MASK, A385_SYS_RSTOUT_MASK_WD);
 }
 
 static bool disable_mcu_watchdog(void)
@@ -158,14 +199,25 @@ static bool disable_mcu_watchdog(void)
 
 	return true;
 }
-#endif
 
-static bool omnia_detect_sata(void)
+static bool omnia_detect_sata(const char *msata_slot)
 {
 	int ret;
 	u16 stsword;
 
 	puts("MiniPCIe/mSATA card detection... ");
+
+	if (msata_slot) {
+		if (strcmp(msata_slot, "pcie") == 0) {
+			puts("forced to MiniPCIe via env\n");
+			return false;
+		} else if (strcmp(msata_slot, "sata") == 0) {
+			puts("forced to mSATA via env\n");
+			return true;
+		} else if (strcmp(msata_slot, "auto") != 0) {
+			printf("unsupported env value '%s', fallback to... ", msata_slot);
+		}
+	}
 
 	ret = omnia_mcu_read(CMD_GET_STATUS_WORD, &stsword, sizeof(stsword));
 	if (ret) {
@@ -187,15 +239,68 @@ static bool omnia_detect_sata(void)
 	return stsword & MSATA_IND_STSBIT ? true : false;
 }
 
+static bool omnia_detect_wwan_usb3(const char *wwan_slot)
+{
+	puts("WWAN slot configuration... ");
+
+	if (wwan_slot && strcmp(wwan_slot, "usb3") == 0) {
+		puts("USB3.0\n");
+		return true;
+	}
+
+	if (wwan_slot && strcmp(wwan_slot, "pcie") != 0)
+		printf("unsupported env value '%s', fallback to... ", wwan_slot);
+
+	puts("PCIe+USB2.0\n");
+	return false;
+}
+
+void *env_sf_get_env_addr(void)
+{
+	/* SPI Flash is mapped to address 0xD4000000 only in SPL */
+#ifdef CONFIG_SPL_BUILD
+	return (void *)0xD4000000 + CONFIG_ENV_OFFSET;
+#else
+	return NULL;
+#endif
+}
+
 int hws_board_topology_load(struct serdes_map **serdes_map_array, u8 *count)
 {
-	if (omnia_detect_sata()) {
-		*serdes_map_array = board_serdes_map_sata;
-		*count = ARRAY_SIZE(board_serdes_map_sata);
-	} else {
-		*serdes_map_array = board_serdes_map_pex;
-		*count = ARRAY_SIZE(board_serdes_map_pex);
+#ifdef CONFIG_SPL_ENV_SUPPORT
+	/* Do not use env_load() as malloc() pool is too small at this stage */
+	bool has_env = (env_init() == 0);
+#endif
+	const char *env_value = NULL;
+
+#ifdef CONFIG_SPL_ENV_SUPPORT
+	/* beware that env_get() returns static allocated memory */
+	env_value = has_env ? env_get("omnia_msata_slot") : NULL;
+#endif
+
+	if (omnia_detect_sata(env_value)) {
+		/* Change SerDes for first mPCIe port (mSATA) from PCIe to SATA */
+		board_serdes_map[0].serdes_type = SATA0;
+		board_serdes_map[0].serdes_speed = SERDES_SPEED_6_GBPS;
+		board_serdes_map[0].serdes_mode = SERDES_DEFAULT_MODE;
 	}
+
+#ifdef CONFIG_SPL_ENV_SUPPORT
+	/* beware that env_get() returns static allocated memory */
+	env_value = has_env ? env_get("omnia_wwan_slot") : NULL;
+#endif
+
+	if (omnia_detect_wwan_usb3(env_value)) {
+		/* Disable SerDes for USB 3.0 pins on the front USB-A port */
+		board_serdes_map[1].serdes_type = DEFAULT_SERDES;
+		/* Change SerDes for third mPCIe port (WWAN) from PCIe to USB 3.0 */
+		board_serdes_map[4].serdes_type = USB3_HOST0;
+		board_serdes_map[4].serdes_speed = SERDES_SPEED_5_GBPS;
+		board_serdes_map[4].serdes_mode = SERDES_DEFAULT_MODE;
+	}
+
+	*serdes_map_array = board_serdes_map;
+	*count = ARRAY_SIZE(board_serdes_map);
 
 	return 0;
 }
@@ -325,7 +430,6 @@ struct mv_ddr_topology_map *mv_ddr_topology_map_get(void)
 		return &board_topology_map_1g;
 }
 
-#ifndef CONFIG_SPL_BUILD
 static int set_regdomain(void)
 {
 	struct omnia_eeprom oep;
@@ -377,7 +481,7 @@ static void handle_reset_button(void)
 		/* Ensure bootcmd_rescue is used by distroboot */
 		env_set("boot_targets", "rescue");
 
-		printf("RESET button was pressed, overwriting bootcmd!\n");
+		printf("RESET button was pressed, overwriting boot_targets!\n");
 	} else {
 		/*
 		 * In case the user somehow managed to save environment with
@@ -394,7 +498,6 @@ static void handle_reset_button(void)
 		}
 	}
 }
-#endif
 
 int board_early_init_f(void)
 {
@@ -423,73 +526,168 @@ int board_early_init_f(void)
 	return 0;
 }
 
+void spl_board_init(void)
+{
+	/*
+	 * If booting from UART, disable MCU watchdog in SPL, since uploading
+	 * U-Boot proper can take too much time and trigger it. Instead enable
+	 * A385 watchdog with very high timeout (10 minutes) to prevent hangup.
+	 */
+	if (get_boot_device() == BOOT_DEVICE_UART) {
+		enable_a385_watchdog(10);
+		disable_mcu_watchdog();
+	}
+}
+
+#if IS_ENABLED(CONFIG_OF_BOARD_FIXUP) || IS_ENABLED(CONFIG_OF_BOARD_SETUP)
+
+static void disable_sata_node(void *blob)
+{
+	int node;
+
+	fdt_for_each_node_by_compatible(node, blob, -1, "marvell,armada-380-ahci") {
+		if (!fdtdec_get_is_enabled(blob, node))
+			continue;
+
+		if (fdt_status_disabled(blob, node) < 0)
+			printf("Cannot disable SATA DT node!\n");
+		else
+			debug("Disabled SATA DT node\n");
+
+		return;
+	}
+
+	printf("Cannot find SATA DT node!\n");
+}
+
+static void disable_pcie_node(void *blob, int port)
+{
+	int node;
+
+	fdt_for_each_node_by_compatible(node, blob, -1, "marvell,armada-370-pcie") {
+		int port_node;
+
+		if (!fdtdec_get_is_enabled(blob, node))
+			continue;
+
+		fdt_for_each_subnode (port_node, blob, node) {
+			if (!fdtdec_get_is_enabled(blob, port_node))
+				continue;
+
+			if (fdtdec_get_int(blob, port_node, "marvell,pcie-port", -1) != port)
+				continue;
+
+			if (fdt_status_disabled(blob, port_node) < 0)
+				printf("Cannot disable PCIe port %d DT node!\n", port);
+			else
+				debug("Disabled PCIe port %d DT node\n", port);
+
+			return;
+		}
+	}
+
+	printf("Cannot find PCIe port %d DT node!\n", port);
+}
+
+static void fixup_msata_port_nodes(void *blob)
+{
+	bool mode_sata;
+
+	/*
+	 * Determine if SerDes 0 is configured to SATA mode.
+	 * We do this instead of calling omnia_detect_sata() to avoid another
+	 * call to the MCU. By this time the common PHYs are initialized (it is
+	 * done in SPL), so we can read this common PHY register.
+	 */
+	mode_sata = (readl(MVEBU_REGISTER(0x183fc)) & GENMASK(3, 0)) == 2;
+
+	/*
+	 * We're either adding status = "disabled" property, or changing
+	 * status = "okay" to status = "disabled". In both cases we'll need more
+	 * space. Increase the size a little.
+	 */
+	if (fdt_increase_size(blob, 32) < 0) {
+		printf("Cannot increase FDT size!\n");
+		return;
+	}
+
+	if (!mode_sata) {
+		/* If mSATA card is not present, disable SATA DT node */
+		disable_sata_node(blob);
+	} else {
+		/* Otherwise disable PCIe port 0 DT node (MiniPCIe / mSATA port) */
+		disable_pcie_node(blob, 0);
+	}
+}
+
+static void fixup_wwan_port_nodes(void *blob)
+{
+	bool mode_usb3;
+
+	/* Determine if SerDes 4 is configured to USB3 mode */
+	mode_usb3 = ((readl(MVEBU_REGISTER(0x183fc)) & GENMASK(19, 16)) >> 16) == 4;
+
+	/* If SerDes 4 is not configured to USB3 mode then nothing is needed to fixup */
+	if (!mode_usb3)
+		return;
+
+	/*
+	 * We're either adding status = "disabled" property, or changing
+	 * status = "okay" to status = "disabled". In both cases we'll need more
+	 * space. Increase the size a little.
+	 */
+	if (fdt_increase_size(blob, 32) < 0) {
+		printf("Cannot increase FDT size!\n");
+		return;
+	}
+
+	/* Disable PCIe port 2 DT node (WWAN) */
+	disable_pcie_node(blob, 2);
+}
+
+#endif
+
+#if IS_ENABLED(CONFIG_OF_BOARD_FIXUP)
+int board_fix_fdt(void *blob)
+{
+	fixup_msata_port_nodes(blob);
+	fixup_wwan_port_nodes(blob);
+
+	return 0;
+}
+#endif
+
 int board_init(void)
 {
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = mvebu_sdram_bar(0) + 0x100;
-
-#ifndef CONFIG_SPL_BUILD
-	disable_mcu_watchdog();
-#endif
 
 	return 0;
 }
 
 int board_late_init(void)
 {
-#ifndef CONFIG_SPL_BUILD
+	/*
+	 * If not booting from UART, MCU watchdog was not disabled in SPL,
+	 * disable it now.
+	 */
+	if (get_boot_device() != BOOT_DEVICE_UART)
+		disable_mcu_watchdog();
+
 	set_regdomain();
 	handle_reset_button();
-#endif
 	pci_init();
 
 	return 0;
 }
 
-static struct udevice *get_atsha204a_dev(void)
-{
-	static struct udevice *dev;
-
-	if (dev)
-		return dev;
-
-	if (uclass_get_device_by_name(UCLASS_MISC, "atsha204a@64", &dev)) {
-		puts("Cannot find ATSHA204A on I2C bus!\n");
-		dev = NULL;
-	}
-
-	return dev;
-}
-
-int checkboard(void)
+int show_board_info(void)
 {
 	u32 version_num, serial_num;
-	int err = 1;
+	int err;
 
-	struct udevice *dev = get_atsha204a_dev();
-
-	if (dev) {
-		err = atsha204a_wakeup(dev);
-		if (err)
-			goto out;
-
-		err = atsha204a_read(dev, ATSHA204A_ZONE_OTP, false,
-				     OMNIA_ATSHA204_OTP_VERSION,
-				     (u8 *)&version_num);
-		if (err)
-			goto out;
-
-		err = atsha204a_read(dev, ATSHA204A_ZONE_OTP, false,
-				     OMNIA_ATSHA204_OTP_SERIAL,
-				     (u8 *)&serial_num);
-		if (err)
-			goto out;
-
-		atsha204a_sleep(dev);
-	}
-
-out:
-	printf("Turris Omnia:\n");
+	err = turris_atsha_otp_get_serial_number(&version_num, &serial_num);
+	printf("Model: Turris Omnia\n");
 	printf("  RAM size: %i MiB\n", omnia_get_ram_size_gb() * 1024);
 	if (err)
 		printf("  Serial Number: unknown\n");
@@ -500,63 +698,9 @@ out:
 	return 0;
 }
 
-static void increment_mac(u8 *mac)
-{
-	int i;
-
-	for (i = 5; i >= 3; i--) {
-		mac[i] += 1;
-		if (mac[i])
-			break;
-	}
-}
-
 int misc_init_r(void)
 {
-	int err;
-	struct udevice *dev = get_atsha204a_dev();
-	u8 mac0[4], mac1[4], mac[6];
-
-	if (!dev)
-		goto out;
-
-	err = atsha204a_wakeup(dev);
-	if (err)
-		goto out;
-
-	err = atsha204a_read(dev, ATSHA204A_ZONE_OTP, false,
-			     OMNIA_ATSHA204_OTP_MAC0, mac0);
-	if (err)
-		goto out;
-
-	err = atsha204a_read(dev, ATSHA204A_ZONE_OTP, false,
-			     OMNIA_ATSHA204_OTP_MAC1, mac1);
-	if (err)
-		goto out;
-
-	atsha204a_sleep(dev);
-
-	mac[0] = mac0[1];
-	mac[1] = mac0[2];
-	mac[2] = mac0[3];
-	mac[3] = mac1[1];
-	mac[4] = mac1[2];
-	mac[5] = mac1[3];
-
-	if (is_valid_ethaddr(mac))
-		eth_env_set_enetaddr("eth1addr", mac);
-
-	increment_mac(mac);
-
-	if (is_valid_ethaddr(mac))
-		eth_env_set_enetaddr("eth2addr", mac);
-
-	increment_mac(mac);
-
-	if (is_valid_ethaddr(mac))
-		eth_env_set_enetaddr("ethaddr", mac);
-
-out:
+	turris_atsha_otp_init_mac_addresses(1);
 	return 0;
 }
 
@@ -594,7 +738,7 @@ static bool fixup_mtd_partitions(void *blob, int offset, struct mtd_info *mtd)
 
 	mtd_probe_devices();
 
-	list_for_each_entry(slave, &mtd->partitions, node) {
+	list_for_each_entry_reverse(slave, &mtd->partitions, node) {
 		char name[32];
 		int part;
 
@@ -624,7 +768,7 @@ static bool fixup_mtd_partitions(void *blob, int offset, struct mtd_info *mtd)
 	return true;
 }
 
-int ft_board_setup(void *blob, struct bd_info *bd)
+static void fixup_spi_nor_partitions(void *blob)
 {
 	struct mtd_info *mtd;
 	int node;
@@ -640,10 +784,21 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 	if (!fixup_mtd_partitions(blob, node, mtd))
 		goto fail;
 
-	return 0;
+	put_mtd_device(mtd);
+	return;
 
 fail:
 	printf("Failed fixing SPI NOR partitions!\n");
+	if (!IS_ERR_OR_NULL(mtd))
+		put_mtd_device(mtd);
+}
+
+int ft_board_setup(void *blob, struct bd_info *bd)
+{
+	fixup_spi_nor_partitions(blob);
+	fixup_msata_port_nodes(blob);
+	fixup_wwan_port_nodes(blob);
+
 	return 0;
 }
 #endif

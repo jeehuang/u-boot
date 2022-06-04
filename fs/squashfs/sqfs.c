@@ -8,11 +8,11 @@
  */
 
 #include <asm/unaligned.h>
+#include <div64.h>
 #include <errno.h>
 #include <fs.h>
 #include <linux/types.h>
-#include <linux/byteorder/little_endian.h>
-#include <linux/byteorder/generic.h>
+#include <asm/byteorder.h>
 #include <memalign.h>
 #include <stdlib.h>
 #include <string.h>
@@ -728,6 +728,8 @@ static int sqfs_read_inode_table(unsigned char **inode_table)
 	*inode_table = malloc(metablks_count * SQFS_METADATA_BLOCK_SIZE);
 	if (!*inode_table) {
 		ret = -ENOMEM;
+		printf("Error: failed to allocate squashfs inode_table of size %i, increasing CONFIG_SYS_MALLOC_LEN could help\n",
+		       metablks_count * SQFS_METADATA_BLOCK_SIZE);
 		goto free_itb;
 	}
 
@@ -1090,7 +1092,7 @@ int sqfs_probe(struct blk_desc *fs_dev_desc, struct disk_partition *fs_partition
 
 	/* Make sure it has a valid SquashFS magic number*/
 	if (get_unaligned_le32(&sblk->s_magic) != SQFS_MAGIC_NUMBER) {
-		printf("Bad magic number for SquashFS image.\n");
+		debug("Bad magic number for SquashFS image.\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -1308,7 +1310,7 @@ static int sqfs_get_lregfile_info(struct squashfs_lreg_inode *lreg,
 int sqfs_read(const char *filename, void *buf, loff_t offset, loff_t len,
 	      loff_t *actread)
 {
-	char *dir = NULL, *fragment_block, *datablock = NULL, *data_buffer = NULL;
+	char *dir = NULL, *fragment_block, *datablock = NULL;
 	char *fragment = NULL, *file = NULL, *resolved, *data;
 	u64 start, n_blks, table_size, data_offset, table_offset, sparse_size;
 	int ret, j, i_number, datablk_count = 0;
@@ -1438,7 +1440,9 @@ int sqfs_read(const char *filename, void *buf, loff_t offset, loff_t len,
 	}
 
 	for (j = 0; j < datablk_count; j++) {
-		start = data_offset / ctxt.cur_dev->blksz;
+		char *data_buffer;
+
+		start = lldiv(data_offset, ctxt.cur_dev->blksz);
 		table_size = SQFS_BLOCK_SIZE(finfo.blk_sizes[j]);
 		table_offset = data_offset - (start * ctxt.cur_dev->blksz);
 		n_blks = DIV_ROUND_UP(table_size + table_offset,
@@ -1499,9 +1503,7 @@ int sqfs_read(const char *filename, void *buf, loff_t offset, loff_t len,
 		}
 
 		data_offset += table_size;
-		if (data_buffer)
-			free(data_buffer);
-		data_buffer = NULL;
+		free(data_buffer);
 		if (*actread >= len)
 			break;
 	}
@@ -1514,7 +1516,7 @@ int sqfs_read(const char *filename, void *buf, loff_t offset, loff_t len,
 		goto out;
 	}
 
-	start = frag_entry.start / ctxt.cur_dev->blksz;
+	start = lldiv(frag_entry.start, ctxt.cur_dev->blksz);
 	table_size = SQFS_BLOCK_SIZE(frag_entry.size);
 	table_offset = frag_entry.start - (start * ctxt.cur_dev->blksz);
 	n_blks = DIV_ROUND_UP(table_size + table_offset, ctxt.cur_dev->blksz);
@@ -1561,10 +1563,7 @@ int sqfs_read(const char *filename, void *buf, loff_t offset, loff_t len,
 
 out:
 	free(fragment);
-	if (datablk_count) {
-		free(data_buffer);
-		free(datablock);
-	}
+	free(datablock);
 	free(file);
 	free(dir);
 	free(finfo.blk_sizes);

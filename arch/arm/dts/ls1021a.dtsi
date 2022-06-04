@@ -3,6 +3,7 @@
  * Freescale ls1021a SOC common device tree source
  *
  * Copyright 2013-2015 Freescale Semiconductor, Inc.
+ * Copyright 2021 NXP
  */
 
 #include "skeleton.dtsi"
@@ -144,6 +145,45 @@
 			big-endian;
 		};
 
+		crypto: crypto@1700000 {
+			compatible = "fsl,sec-v5.0", "fsl,sec-v4.0";
+			fsl,sec-era = <7>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg		 = <0x1700000 0x100000>;
+			ranges		 = <0x0 0x1700000 0x100000>;
+			interrupts	 = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+
+			sec_jr0: jr@10000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x10000 0x10000>;
+				interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr1: jr@20000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x20000 0x10000>;
+				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr2: jr@30000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x30000 0x10000>;
+				interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sec_jr3: jr@40000 {
+				compatible = "fsl,sec-v5.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
+				reg = <0x40000 0x10000>;
+				interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+		};
+
 		clockgen: clocking@1ee1000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -190,7 +230,7 @@
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "dspi";
 			clocks = <&platform_clk 1>;
-			num-cs = <6>;
+			spi-num-chipselects = <6>;
 			big-endian;
 			status = "disabled";
 		};
@@ -203,7 +243,7 @@
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "dspi";
 			clocks = <&platform_clk 1>;
-			num-cs = <6>;
+			spi-num-chipselects = <6>;
 			big-endian;
 			status = "disabled";
 		};
@@ -469,7 +509,7 @@
 		sata: sata@3200000 {
 			compatible = "fsl,ls1021a-ahci";
 			reg = <0x3200000 0x10000 0x20220520 0x4>;
-			reg-names = "sata-base", "ecc-addr";
+			reg-names = "ahci", "sata-ecc";
 			interrupts = <0 101 4>;
 			status = "disabled";
 		};

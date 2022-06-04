@@ -125,7 +125,7 @@
 #define COMPHY_REFCLK_ALIGNMENT	(MVEBU_REGISTER(0x182f8))
 
 /* BootROM error register (also includes some status infos) */
-#define CONFIG_BOOTROM_ERR_REG	(MVEBU_REGISTER(0x182d0))
+#define BOOTROM_ERR_REG		(MVEBU_REGISTER(0x182d0))
 #define BOOTROM_ERR_MODE_OFFS	28
 #define BOOTROM_ERR_MODE_MASK	(0xf << BOOTROM_ERR_MODE_OFFS)
 #define BOOTROM_ERR_MODE_UART	0x6
@@ -189,7 +189,7 @@
 #define BOOT_FROM_SPI		0x3
 
 #define CONFIG_SYS_TCLK		200000000	/* 200MHz */
-#else
+#elif defined(CONFIG_ARMADA_XP)
 /* SAR values for Armada XP */
 #define CONFIG_SAR_REG		(MVEBU_REGISTER(0x18230))
 #define CONFIG_SAR2_REG		(MVEBU_REGISTER(0x18234))

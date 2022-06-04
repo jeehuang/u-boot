@@ -35,6 +35,11 @@ struct fmp_payload_header {
 	u32 lowest_supported_version;
 };
 
+__weak void set_dfu_alt_info(char *interface, char *devstr)
+{
+	env_set("dfu_alt_info", update_info.dfu_string);
+}
+
 /* Place holder; not supported */
 static
 efi_status_t EFIAPI efi_firmware_get_image_unsupported(
@@ -97,88 +102,57 @@ efi_status_t EFIAPI efi_firmware_set_package_info_unsupported(
 }
 
 /**
- * efi_get_dfu_info - return information about the current firmware image
- * @this:			Protocol instance
+ * efi_fill_image_desc_array - populate image descriptor array
  * @image_info_size:		Size of @image_info
  * @image_info:			Image information
  * @descriptor_version:		Pointer to version number
- * @descriptor_count:		Pointer to number of descriptors
+ * @descriptor_count:		Image count
  * @descriptor_size:		Pointer to descriptor size
- * package_version:		Package version
- * package_version_name:	Package version's name
- * image_type:			Image type GUID
+ * @package_version:		Package version
+ * @package_version_name:	Package version's name
  *
- * Return information bout the current firmware image in @image_info.
+ * Return information about the current firmware image in @image_info.
  * @image_info will consist of a number of descriptors.
- * Each descriptor will be created based on "dfu_alt_info" variable.
+ * Each descriptor will be created based on efi_fw_image array.
  *
  * Return		status code
  */
-static efi_status_t efi_get_dfu_info(
+static efi_status_t efi_fill_image_desc_array(
 	efi_uintn_t *image_info_size,
 	struct efi_firmware_image_descriptor *image_info,
 	u32 *descriptor_version,
 	u8 *descriptor_count,
 	efi_uintn_t *descriptor_size,
 	u32 *package_version,
-	u16 **package_version_name,
-	const efi_guid_t *image_type)
+	u16 **package_version_name)
 {
-	struct dfu_entity *dfu;
-	size_t names_len, total_size;
-	int dfu_num, i;
-	u16 *name, *next;
+	size_t total_size;
+	struct efi_fw_image *fw_array;
+	int i;
 
-	dfu_init_env_entities(NULL, NULL);
+	fw_array = update_info.images;
+	*descriptor_count = num_image_type_guids;
 
-	names_len = 0;
-	dfu_num = 0;
-	list_for_each_entry(dfu, &dfu_list, list) {
-		names_len += (utf8_utf16_strlen(dfu->name) + 1) * 2;
-		dfu_num++;
-	}
-	if (!dfu_num) {
-		log_warning("Probably dfu_alt_info not defined\n");
-		*image_info_size = 0;
-		dfu_free_entities();
+	total_size = sizeof(*image_info) * num_image_type_guids;
 
-		return EFI_SUCCESS;
-	}
-
-	total_size = sizeof(*image_info) * dfu_num + names_len;
-	/*
-	 * we will assume that sizeof(*image_info) * dfu_name
-	 * is, at least, a multiple of 2. So the start address for
-	 * image_id_name would be aligned with 2 bytes.
-	 */
 	if (*image_info_size < total_size) {
 		*image_info_size = total_size;
-		dfu_free_entities();
 
 		return EFI_BUFFER_TOO_SMALL;
 	}
 	*image_info_size = total_size;
 
 	*descriptor_version = EFI_FIRMWARE_IMAGE_DESCRIPTOR_VERSION;
-	*descriptor_count = dfu_num;
 	*descriptor_size = sizeof(*image_info);
 	*package_version = 0xffffffff; /* not supported */
 	*package_version_name = NULL; /* not supported */
 
-	/* DFU alt number should correspond to image_index */
-	i = 0;
-	/* Name area starts just after descriptors */
-	name = (u16 *)((u8 *)image_info + sizeof(*image_info) * dfu_num);
-	next = name;
-	list_for_each_entry(dfu, &dfu_list, list) {
-		image_info[i].image_index = dfu->alt + 1;
-		image_info[i].image_type_id = *image_type;
-		image_info[i].image_id = dfu->alt;
+	for (i = 0; i < num_image_type_guids; i++) {
+		image_info[i].image_index = fw_array[i].image_index;
+		image_info[i].image_type_id = fw_array[i].image_type_id;
+		image_info[i].image_id = fw_array[i].image_index;
 
-		/* copy the DFU entity name */
-		utf8_utf16_strcpy(&next, dfu->name);
-		image_info[i].image_id_name = name;
-		name = ++next;
+		image_info[i].image_id_name = fw_array[i].fw_name;
 
 		image_info[i].version = 0; /* not supported */
 		image_info[i].version_name = NULL; /* not supported */
@@ -199,11 +173,7 @@ static efi_status_t efi_get_dfu_info(
 		image_info[i].last_attempt_status = LAST_ATTEMPT_STATUS_SUCCESS;
 		image_info[i].hardware_instance = 1;
 		image_info[i].dependencies = NULL;
-
-		i++;
 	}
-
-	dfu_free_entities();
 
 	return EFI_SUCCESS;
 }
@@ -217,8 +187,6 @@ static efi_status_t efi_get_dfu_info(
  *   - versioning of firmware image
  *   - package information
  */
-const efi_guid_t efi_firmware_image_type_uboot_fit =
-	EFI_FIRMWARE_IMAGE_TYPE_UBOOT_FIT_GUID;
 
 /**
  * efi_firmware_fit_get_image_info - return information about the current
@@ -229,8 +197,8 @@ const efi_guid_t efi_firmware_image_type_uboot_fit =
  * @descriptor_version:		Pointer to version number
  * @descriptor_count:		Pointer to number of descriptors
  * @descriptor_size:		Pointer to descriptor size
- * package_version:		Package version
- * package_version_name:	Package version's name
+ * @package_version:		Package version
+ * @package_version_name:	Package version's name
  *
  * Return information bout the current firmware image in @image_info.
  * @image_info will consist of a number of descriptors.
@@ -264,11 +232,10 @@ efi_status_t EFIAPI efi_firmware_fit_get_image_info(
 	     !descriptor_size || !package_version || !package_version_name))
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 
-	ret = efi_get_dfu_info(image_info_size, image_info,
-			       descriptor_version, descriptor_count,
-			       descriptor_size,
-			       package_version, package_version_name,
-			       &efi_firmware_image_type_uboot_fit);
+	ret = efi_fill_image_desc_array(image_info_size, image_info,
+					descriptor_version, descriptor_count,
+					descriptor_size, package_version,
+					package_version_name);
 
 	return EFI_EXIT(ret);
 }
@@ -299,7 +266,7 @@ efi_status_t EFIAPI efi_firmware_fit_set_image(
 	efi_status_t (*progress)(efi_uintn_t completion),
 	u16 **abort_reason)
 {
-	EFI_ENTRY("%p %d %p %zd %p %p %p\n", this, image_index, image,
+	EFI_ENTRY("%p %d %p %zu %p %p %p\n", this, image_index, image,
 		  image_size, vendor_code, progress, abort_reason);
 
 	if (!image || image_index != 1)
@@ -326,20 +293,18 @@ const struct efi_firmware_management_protocol efi_fmp_fit = {
  * This FIRMWARE_MANAGEMENT_PROTOCOL driver provides a firmware update
  * method with raw data.
  */
-const efi_guid_t efi_firmware_image_type_uboot_raw =
-	EFI_FIRMWARE_IMAGE_TYPE_UBOOT_RAW_GUID;
 
 /**
  * efi_firmware_raw_get_image_info - return information about the current
-				     firmware image
+ *				     firmware image
  * @this:			Protocol instance
  * @image_info_size:		Size of @image_info
  * @image_info:			Image information
  * @descriptor_version:		Pointer to version number
  * @descriptor_count:		Pointer to number of descriptors
  * @descriptor_size:		Pointer to descriptor size
- * package_version:		Package version
- * package_version_name:	Package version's name
+ * @package_version:		Package version
+ * @package_version_name:	Package version's name
  *
  * Return information bout the current firmware image in @image_info.
  * @image_info will consist of a number of descriptors.
@@ -373,11 +338,10 @@ efi_status_t EFIAPI efi_firmware_raw_get_image_info(
 	     !descriptor_size || !package_version || !package_version_name))
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 
-	ret = efi_get_dfu_info(image_info_size, image_info,
-			       descriptor_version, descriptor_count,
-			       descriptor_size,
-			       package_version, package_version_name,
-			       &efi_firmware_image_type_uboot_raw);
+	ret = efi_fill_image_desc_array(image_info_size, image_info,
+					descriptor_version, descriptor_count,
+					descriptor_size, package_version,
+					package_version_name);
 
 	return EFI_EXIT(ret);
 }
@@ -414,7 +378,7 @@ efi_status_t EFIAPI efi_firmware_raw_set_image(
 	efi_status_t status;
 	efi_uintn_t capsule_payload_size;
 
-	EFI_ENTRY("%p %d %p %zd %p %p %p\n", this, image_index, image,
+	EFI_ENTRY("%p %d %p %zu %p %p %p\n", this, image_index, image,
 		  image_size, vendor_code, progress, abort_reason);
 
 	if (!image)

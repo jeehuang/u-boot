@@ -156,12 +156,14 @@ void init_env(void)
 #endif
 }
 
-#ifdef CONFIG_FS_LOADER
 int load_firmware(char *name_fw, char *name_loadaddr, u32 *loadaddr)
 {
 	struct udevice *fsdev;
 	char *name = NULL;
 	int size = 0;
+
+	if (!IS_ENABLED(CONFIG_FS_LOADER))
+		return 0;
 
 	*loadaddr = 0;
 #ifdef CONFIG_SPL_ENV_SUPPORT
@@ -186,19 +188,18 @@ int load_firmware(char *name_fw, char *name_loadaddr, u32 *loadaddr)
 
 	return size;
 }
-#else
-int load_firmware(char *name_fw, char *name_loadaddr, u32 *loadaddr)
+
+__weak void release_resources_for_core_shutdown(void)
 {
-	return 0;
+	debug("%s not implemented...\n", __func__);
 }
-#endif
 
 void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 {
 	typedef void __noreturn (*image_entry_noargs_t)(void);
 	struct ti_sci_handle *ti_sci = get_ti_sci_handle();
 	u32 loadaddr = 0;
-	int ret, size = 0;
+	int ret, size = 0, shut_cpu = 0;
 
 	/* Release all the exclusive devices held by SPL before starting ATF */
 	ti_sci->ops.dev_ops.release_exclusive_devices(ti_sci);
@@ -226,19 +227,10 @@ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 	if (ret)
 		panic("%s: ATF failed to load on rproc (%d)\n", __func__, ret);
 
-	/* Add an extra newline to differentiate the ATF logs from SPL */
-	printf("Starting ATF on ARM64 core...\n\n");
-
-	ret = rproc_start(1);
-	if (ret)
-		panic("%s: ATF failed to start on rproc (%d)\n", __func__, ret);
 	if (!fit_image_info[IMAGE_ID_DM_FW].image_len &&
 	    !(size > 0 && valid_elf_image(loadaddr))) {
-		debug("Shutting down...\n");
-		release_resources_for_core_shutdown();
-
-		while (1)
-			asm volatile("wfe");
+		shut_cpu = 1;
+		goto start_arm64;
 	}
 
 	if (!fit_image_info[IMAGE_ID_DM_FW].image_start) {
@@ -251,6 +243,21 @@ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
 
 	debug("%s: jumping to address %x\n", __func__, loadaddr);
 
+start_arm64:
+	/* Add an extra newline to differentiate the ATF logs from SPL */
+	printf("Starting ATF on ARM64 core...\n\n");
+
+	ret = rproc_start(1);
+	if (ret)
+		panic("%s: ATF failed to start on rproc (%d)\n", __func__, ret);
+
+	if (shut_cpu) {
+		debug("Shutting down...\n");
+		release_resources_for_core_shutdown();
+
+		while (1)
+			asm volatile("wfe");
+	}
 	image_entry_noargs_t image_entry = (image_entry_noargs_t)loadaddr;
 
 	image_entry();
@@ -538,3 +545,19 @@ void spl_board_prepare_for_linux(void)
 	dcache_disable();
 }
 #endif
+
+int misc_init_r(void)
+{
+	if (IS_ENABLED(CONFIG_TI_AM65_CPSW_NUSS)) {
+		struct udevice *dev;
+		int ret;
+
+		ret = uclass_get_device_by_driver(UCLASS_MISC,
+						  DM_DRIVER_GET(am65_cpsw_nuss),
+						  &dev);
+		if (ret)
+			printf("Failed to probe am65_cpsw_nuss driver\n");
+	}
+
+	return 0;
+}

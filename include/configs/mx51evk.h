@@ -12,20 +12,7 @@
 
  /* High Level Configuration Options */
 
-#define CONFIG_SYS_FSL_CLK
-
 #include <asm/arch/imx-regs.h>
-
-#define CONFIG_CMDLINE_TAG			/* enable passing of ATAGs */
-#define CONFIG_SETUP_MEMORY_TAGS
-#define CONFIG_INITRD_TAG
-#define CONFIG_REVISION_TAG
-
-#define CONFIG_MACH_TYPE	MACH_TYPE_MX51_BABBAGE
-/*
- * Size of malloc() pool
- */
-#define CONFIG_SYS_MALLOC_LEN		(10 * 1024 * 1024)
 
 /*
  * Hardware drivers
@@ -35,7 +22,6 @@
 #define CONFIG_MXC_UART_BASE	UART1_BASE
 
 /* PMIC Controller */
-#define CONFIG_POWER
 #define CONFIG_POWER_SPI
 #define CONFIG_POWER_FSL
 #define CONFIG_FSL_PMIC_BUS	0
@@ -57,11 +43,6 @@
 #define CONFIG_MXC_USB_FLAGS	MXC_EHCI_POWER_PINS_ENABLED
 
 /* Framebuffer and LCD */
-#define CONFIG_VIDEO_LOGO
-
-#define CONFIG_ETHPRIME		"FEC0"
-
-#define CONFIG_LOADADDR		0x92000000	/* loadaddr env var */
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"script=boot.scr\0" \
@@ -122,25 +103,9 @@
 			"bootz; " \
 		"fi;\0"
 
-#define CONFIG_BOOTCOMMAND \
-	"mmc dev ${mmcdev}; if mmc rescan; then " \
-		"if run loadbootscript; then " \
-			"run bootscript; " \
-		"else " \
-			"if run loadimage; then " \
-				"run mmcboot; " \
-			"else run netboot; " \
-			"fi; " \
-		"fi; " \
-	"else run netboot; fi"
-
-#define CONFIG_ARP_TIMEOUT	200UL
-
 /*
  * Miscellaneous configurable options
  */
-
-#define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 
 /*-----------------------------------------------------------------------
  * Physical Memory Map
@@ -164,18 +129,5 @@
 /*-----------------------------------------------------------------------
  * environment organization
  */
-
-/*
- * Environment starts at CONFIG_ENV_OFFSET=0xC0000 = 768k = 768 * 1024 = 786432
- *
- * Detect overlap between U-Boot image and environment area in build-time
- *
- * CONFIG_BOARD_SIZE_LIMIT = CONFIG_ENV_OFFSET - u-boot.imx offset
- * CONFIG_BOARD_SIZE_LIMIT = 768k - 1k = 767k = 785408
- *
- * Currently CONFIG_BOARD_SIZE_LIMIT does not handle expressions, so
- * write the direct value here
- */
-#define CONFIG_BOARD_SIZE_LIMIT		785408
 
 #endif

@@ -28,17 +28,9 @@
 #define CONFIG_SYS_SDRAM_BASE		0x80000000
 #define CONFIG_SYS_INIT_SP_ADDR		(CONFIG_SYS_SDRAM_BASE + SZ_2M)
 
-#define CONFIG_SYS_LOAD_ADDR		(CONFIG_SYS_SDRAM_BASE + SZ_2M)
-
-#define CONFIG_SYS_MALLOC_LEN		SZ_8M
-
 #define CONFIG_SYS_BOOTM_LEN		SZ_64M
 
 #define CONFIG_STANDALONE_LOAD_ADDR	0x80200000
-
-#define CONFIG_SYS_PCI_64BIT		1	/* enable 64-bit resources */
-
-#define CONFIG_SYS_CACHELINE_SIZE	64
 
 /* Environment options */
 
@@ -47,6 +39,7 @@
 	func(NVME, nvme, 0) \
 	func(USB, usb, 0) \
 	func(MMC, mmc, 0) \
+	func(SCSI, scsi, 0) \
 	func(PXE, pxe, na) \
 	func(DHCP, dhcp, na)
 
@@ -63,28 +56,20 @@
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"kernel_addr_r=0x84000000\0" \
-	"fdt_addr_r=0x88000000\0" \
-	"scriptaddr=0x88100000\0" \
-	"pxefile_addr_r=0x88200000\0" \
-	"ramdisk_addr_r=0x88300000\0" \
-	"kernel_comp_addr_r=0x90000000\0" \
+	"kernel_comp_addr_r=0x88000000\0" \
 	"kernel_comp_size=0x4000000\0" \
+	"fdt_addr_r=0x8c000000\0" \
+	"scriptaddr=0x8c100000\0" \
+	"pxefile_addr_r=0x8c200000\0" \
+	"ramdisk_addr_r=0x8c300000\0" \
 	"type_guid_gpt_loader1=" TYPE_GUID_LOADER1 "\0" \
 	"type_guid_gpt_loader2=" TYPE_GUID_LOADER2 "\0" \
 	"type_guid_gpt_system=" TYPE_GUID_SYSTEM "\0" \
 	"partitions=" PARTS_DEFAULT "\0" \
 	"fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0" \
 	BOOTENV
-
-#define CONFIG_PREBOOT \
-	"setenv fdt_addr ${fdtcontroladdr};" \
-	"fdt addr ${fdtcontroladdr};"
 #endif /* CONFIG_SPL_BUILD */
 
 #define CONFIG_SYS_EEPROM_BUS_NUM		0
-#define CONFIG_SYS_I2C_EEPROM_ADDR		0x54
-#define CONFIG_SYS_I2C_EEPROM_ADDR_LEN		0x1
-
-#define CONFIG_ID_EEPROM
 
 #endif /* __SIFIVE_UNMATCHED_H */

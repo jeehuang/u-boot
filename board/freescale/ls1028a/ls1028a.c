@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2019 NXP
+ * Copyright 2019, 2021 NXP
  */
 
 #include <common.h>
@@ -73,14 +73,6 @@ u32 get_lpuart_clk(void)
 
 int board_init(void)
 {
-#ifdef CONFIG_ENV_IS_NOWHERE
-	gd->env_addr = (ulong)&default_environment[0];
-#endif
-
-#ifdef CONFIG_FSL_CAAM
-	sec_init();
-#endif
-
 #ifdef CONFIG_FSL_LS_PPA
 	ppa_init();
 #endif
@@ -137,7 +129,7 @@ int board_early_init_f(void)
 	u8 uart;
 #endif
 
-#ifdef CONFIG_SYS_I2C_EARLY_INIT
+#if defined(CONFIG_SYS_I2C_EARLY_INIT) && defined(CONFIG_SPL_BUILD)
 	i2c_early_init_f();
 #endif
 

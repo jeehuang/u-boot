@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2014 Freescale Semiconductor, Inc.
- *
+ * Copyright 2021 NXP
  */
 
 #include <common.h>
@@ -57,7 +57,7 @@ static enum caam_hash_algos get_hash_type(struct hash_algo *algo)
  *
  * @ctxp: Pointer to the pointer of the context for hashing
  * @caam_algo: Enum for SHA1 or SHA256
- * @return 0 if ok, -ENOMEM on error
+ * Return: 0 if ok, -ENOMEM on error
  */
 static int caam_hash_init(void **ctxp, enum caam_hash_algos caam_algo)
 {
@@ -80,7 +80,7 @@ static int caam_hash_init(void **ctxp, enum caam_hash_algos caam_algo)
  * @size: Size of the buffer being hashed
  * @is_last: 1 if this is the last update; 0 otherwise
  * @caam_algo: Enum for SHA1 or SHA256
- * @return 0 if ok, -EINVAL on error
+ * Return: 0 if ok, -EINVAL on error
  */
 static int caam_hash_update(void *hash_ctx, const void *buf,
 			    unsigned int size, int is_last,
@@ -120,13 +120,13 @@ static int caam_hash_update(void *hash_ctx, const void *buf,
  * Perform progressive hashing on the given buffer and copy hash at
  * destination buffer
  *
- * The context is freed after completion of hash operation.
- *
+ * The context is freed after successful completion of hash operation.
+ * In case of failure, context is not freed.
  * @hash_ctx: Pointer to the context for hashing
  * @dest_buf: Pointer to the destination buffer where hash is to be copied
  * @size: Size of the buffer being hashed
  * @caam_algo: Enum for SHA1 or SHA256
- * @return 0 if ok, -EINVAL on error
+ * Return: 0 if ok, -EINVAL on error
  */
 static int caam_hash_finish(void *hash_ctx, void *dest_buf,
 			    int size, enum caam_hash_algos caam_algo)
@@ -136,7 +136,6 @@ static int caam_hash_finish(void *hash_ctx, void *dest_buf,
 	int i = 0, ret = 0;
 
 	if (size < driver_hash[caam_algo].digestsize) {
-		free(ctx);
 		return -EINVAL;
 	}
 
@@ -150,13 +149,22 @@ static int caam_hash_finish(void *hash_ctx, void *dest_buf,
 				  driver_hash[caam_algo].digestsize,
 				  1);
 
+	flush_dcache_range((ulong)ctx->sg_tbl, (ulong)(ctx->sg_tbl) + len);
+	flush_dcache_range((ulong)ctx->sha_desc,
+			   (ulong)(ctx->sha_desc) + (sizeof(uint32_t) * MAX_CAAM_DESCSIZE));
+	flush_dcache_range((ulong)ctx->hash,
+			   (ulong)(ctx->hash) + driver_hash[caam_algo].digestsize);
+
 	ret = run_descriptor_jr(ctx->sha_desc);
 
-	if (ret)
+	if (ret) {
 		debug("Error %x\n", ret);
-	else
+		return ret;
+	} else {
+		invalidate_dcache_range((ulong)ctx->hash,
+					(ulong)(ctx->hash) + driver_hash[caam_algo].digestsize);
 		memcpy(dest_buf, ctx->hash, sizeof(ctx->hash));
-
+	}
 	free(ctx);
 	return ret;
 }
@@ -168,16 +176,16 @@ int caam_hash(const unsigned char *pbuf, unsigned int buf_len,
 	uint32_t *desc;
 	unsigned int size;
 
-	desc = malloc_cache_aligned(sizeof(int) * MAX_CAAM_DESCSIZE);
-	if (!desc) {
-		debug("Not enough memory for descriptor allocation\n");
-		return -ENOMEM;
-	}
-
 	if (!IS_ALIGNED((uintptr_t)pbuf, ARCH_DMA_MINALIGN) ||
 	    !IS_ALIGNED((uintptr_t)pout, ARCH_DMA_MINALIGN)) {
 		puts("Error: Address arguments are not aligned\n");
 		return -EINVAL;
+	}
+
+	desc = malloc_cache_aligned(sizeof(int) * MAX_CAAM_DESCSIZE);
+	if (!desc) {
+		debug("Not enough memory for descriptor allocation\n");
+		return -ENOMEM;
 	}
 
 	size = ALIGN(buf_len, ARCH_DMA_MINALIGN);
@@ -190,6 +198,8 @@ int caam_hash(const unsigned char *pbuf, unsigned int buf_len,
 
 	size = ALIGN(sizeof(int) * MAX_CAAM_DESCSIZE, ARCH_DMA_MINALIGN);
 	flush_dcache_range((unsigned long)desc, (unsigned long)desc + size);
+	size = ALIGN(driver_hash[algo].digestsize, ARCH_DMA_MINALIGN);
+	invalidate_dcache_range((unsigned long)pout, (unsigned long)pout + size);
 
 	ret = run_descriptor_jr(desc);
 

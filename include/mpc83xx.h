@@ -21,10 +21,6 @@
 /*
  * IMMRBAR - Internal Memory Register Base Address
  */
-#ifndef CONFIG_DEFAULT_IMMR
-/* Default IMMR base address */
-#define CONFIG_DEFAULT_IMMR		0xFF400000
-#endif
 /* Register offset to immr */
 #define IMMRBAR				0x0000
 #define IMMRBAR_BASE_ADDR		0xFFF00000	/* Base addr. mask */
@@ -1372,7 +1368,7 @@
 #endif /* !CONFIG_MPC83XX_SDRAM */
 
 /*
- * CONFIG_ADDRESS - PCI Config Address Register
+ * PCI_CONFIG_ADDRESS - PCI Config Address Register
  */
 #define PCI_CONFIG_ADDRESS_EN		0x80000000
 #define PCI_CONFIG_ADDRESS_BN_SHIFT	16
