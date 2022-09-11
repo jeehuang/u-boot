@@ -9,24 +9,23 @@
 #include "config.h"
 
 OUTPUT_ARCH(powerpc)
-#ifdef CONFIG_SYS_MPC85XX_NO_RESETVEC
-PHDRS
-{
-	text PT_LOAD;
-	bss PT_LOAD;
-}
-#endif
+
 SECTIONS
 {
-/* For ifc, elbc, esdhc, espi, all need the SPL without section .resetvec */
-#ifdef CONFIG_SYS_MPC85XX_NO_RESETVEC
-	.bootpg IMAGE_TEXT_BASE - 0x1000 :
-	{
-		KEEP(*(.bootpg))
-	} :text = 0xffff
+/* Optional boot sector */
+#if defined(CONFIG_FSL_PREPBL_ESDHC_BOOT_SECTOR)
+	.bootsect IMAGE_TEXT_BASE - CONFIG_FSL_PREPBL_ESDHC_BOOT_SECTOR_DATA * 512 : {
+		KEEP(*(.bootsect))
+		. = CONFIG_FSL_PREPBL_ESDHC_BOOT_SECTOR_DATA * 512;
+	}
 #endif
+
 	. = IMAGE_TEXT_BASE;
 	.text : {
+/* For ifc, elbc, esdhc, espi, all need the SPL without section .resetvec */
+#if CONFIG_IS_ENABLED(SYS_MPC85XX_NO_RESETVEC)
+		KEEP(*(.bootpg))
+#endif
 		*(.text*)
 	}
 	_etext = .;
@@ -50,8 +49,8 @@ SECTIONS
 	_edata  =  .;
 
 	. = ALIGN(4);
-	.u_boot_list : {
-		KEEP(*(SORT(.u_boot_list*)));
+	__u_boot_list : {
+		KEEP(*(SORT(__u_boot_list*)));
 	}
 
 	. = .;
@@ -75,7 +74,7 @@ SECTIONS
 #endif
 
 /* For nor and nand is needed the SPL with section .resetvec */
-#ifndef CONFIG_SYS_MPC85XX_NO_RESETVEC
+#if !CONFIG_IS_ENABLED(SYS_MPC85XX_NO_RESETVEC)
 #if defined(CONFIG_FSL_IFC) /* Restrict bootpg at 4K boundry for IFC */
 #ifndef BOOT_PAGE_OFFSET
 #define BOOT_PAGE_OFFSET 0x1000

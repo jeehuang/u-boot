@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2018 Marek Behun <marek.behun@nic.cz>
+ * Copyright (C) 2018 Marek Behún <kabel@kernel.org>
  */
 
 #include <common.h>
@@ -819,6 +819,11 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 
 			res = fdt_setprop_string(blob, node, "phy-mode",
 						 "sgmii");
+			if (res < 0)
+				return res;
+
+			res = fdt_setprop_string(blob, node, "label",
+						 "sfp");
 			if (res < 0)
 				return res;
 		}

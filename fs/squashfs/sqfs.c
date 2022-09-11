@@ -13,6 +13,7 @@
 #include <fs.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
+#include <linux/compat.h>
 #include <memalign.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +50,7 @@ static int sqfs_read_sblk(struct squashfs_super_block **sblk)
 
 	if (sqfs_disk_read(0, 1, *sblk) != 1) {
 		free(*sblk);
-		sblk = NULL;
+		*sblk = NULL;
 		return -EINVAL;
 	}
 
@@ -725,7 +726,8 @@ static int sqfs_read_inode_table(unsigned char **inode_table)
 		goto free_itb;
 	}
 
-	*inode_table = malloc(metablks_count * SQFS_METADATA_BLOCK_SIZE);
+	*inode_table = kcalloc(metablks_count, SQFS_METADATA_BLOCK_SIZE,
+			       GFP_KERNEL);
 	if (!*inode_table) {
 		ret = -ENOMEM;
 		printf("Error: failed to allocate squashfs inode_table of size %i, increasing CONFIG_SYS_MALLOC_LEN could help\n",
@@ -975,6 +977,7 @@ int sqfs_readdir(struct fs_dir_stream *fs_dirs, struct fs_dirent **dentp)
 	int i_number, offset = 0, ret;
 	struct fs_dirent *dent;
 	unsigned char *ipos;
+	u16 name_size;
 
 	dirs = (struct squashfs_dir_stream *)fs_dirs;
 	if (!dirs->size) {
@@ -1057,9 +1060,10 @@ int sqfs_readdir(struct fs_dir_stream *fs_dirs, struct fs_dirent **dentp)
 		return -SQFS_STOP_READDIR;
 	}
 
-	/* Set entry name */
-	strncpy(dent->name, dirs->entry->name, dirs->entry->name_size + 1);
-	dent->name[dirs->entry->name_size + 1] = '\0';
+	/* Set entry name (capped at FS_DIRENT_NAME_LEN which is a U-Boot limitation) */
+	name_size = min_t(u16, dirs->entry->name_size + 1, FS_DIRENT_NAME_LEN - 1);
+	strncpy(dent->name, dirs->entry->name, name_size);
+	dent->name[name_size] = '\0';
 
 	offset = dirs->entry->name_size + 1 + SQFS_ENTRY_BASE_LENGTH;
 	dirs->entry_count--;
