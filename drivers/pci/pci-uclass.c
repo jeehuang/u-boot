@@ -766,7 +766,7 @@ static int pci_find_and_bind_driver(struct udevice *parent,
 	if (ofnode_valid(dev_ofnode(parent)))
 		pci_dev_find_ofnode(parent, bdf, &node);
 
-	if (ofnode_valid(node) && !ofnode_is_available(node)) {
+	if (ofnode_valid(node) && !ofnode_is_enabled(node)) {
 		debug("%s: Ignoring disabled device\n", __func__);
 		return log_msg_ret("dis", -EPERM);
 	}
@@ -1217,7 +1217,7 @@ static int skip_to_next_device(struct udevice *bus, struct udevice **devp)
 	 * Scan through all the PCI controllers. On x86 there will only be one
 	 * but that is not necessarily true on other hardware.
 	 */
-	do {
+	while (bus) {
 		device_find_first_child(bus, &dev);
 		if (dev) {
 			*devp = dev;
@@ -1226,7 +1226,7 @@ static int skip_to_next_device(struct udevice *bus, struct udevice **devp)
 		ret = uclass_next_device(&bus);
 		if (ret)
 			return ret;
-	} while (bus);
+	}
 
 	return 0;
 }
