@@ -98,6 +98,7 @@ config SPL_PAD_TO
 	default 0x11000 if ARCH_MX7 || (ARCH_MX6 && !MX6_OCRAM_256KB)
 	default 0x10000 if ARCH_KEYSTONE
 	default 0x8000 if ARCH_SUNXI && !MACH_SUN50I_H616
+	default 0x0 if ARCH_MTMIPS
 	default TPL_MAX_SIZE if TPL_MAX_SIZE > SPL_MAX_SIZE
 	default SPL_MAX_SIZE
 	help
@@ -1439,7 +1440,8 @@ config SPL_YMODEM_SUPPORT
 
 config SPL_ATF
 	bool "Support ARM Trusted Firmware"
-	depends on ARM64 && SPL_FIT
+	depends on ARM64
+	depends on SPL_LOAD_FIT && !SPL_FIT_IMAGE_TINY
 	help
 	  ATF(ARM Trusted Firmware) is a component for ARM AArch64 which
 	  is loaded by SPL (which is considered as BL2 in ATF terminology).
@@ -1486,6 +1488,7 @@ config SPL_OPTEE_IMAGE
 config SPL_OPENSBI
 	bool "Support RISC-V OpenSBI"
 	depends on RISCV && SPL_RISCV_MMODE && RISCV_SMODE
+	depends on SPL_LOAD_FIT && !SPL_FIT_IMAGE_TINY
 	help
 	  OpenSBI is an open-source implementation of the RISC-V Supervisor Binary
 	  Interface (SBI) specification. U-Boot supports the OpenSBI FW_DYNAMIC

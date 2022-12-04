@@ -73,13 +73,10 @@
 
 #ifdef CONFIG_NAND_SUNXI
 #define CONFIG_SYS_NAND_MAX_ECCPOS 1664
-#define CONFIG_SYS_MAX_NAND_DEVICE 8
 #endif
 
 /* mmc config */
 #define CONFIG_MMC_SUNXI_SLOT		0
-
-#define CONFIG_SYS_MMC_MAX_DEVICE	4
 
 /*
  * Miscellaneous configurable options
@@ -89,8 +86,6 @@
 #define CONFIG_STANDALONE_LOAD_ADDR	CONFIG_SYS_LOAD_ADDR
 
 /* FLASH and environment organization */
-
-#define CONFIG_SYS_MONITOR_LEN		(768 << 10)	/* 768 KiB */
 
 /*
  * We cannot use expressions here, because expressions won't be evaluated in
@@ -301,7 +296,7 @@
 	"stdin=serial\0"
 #endif
 
-#ifdef CONFIG_DM_VIDEO
+#ifdef CONFIG_VIDEO
 #define CONSOLE_STDOUT_SETTINGS \
 	"stdout=serial,vidconsole\0" \
 	"stderr=serial,vidconsole\0"

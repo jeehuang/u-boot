@@ -23,6 +23,7 @@ Shell commands
    cmd/addrmap
    cmd/askenv
    cmd/base
+   cmd/bootd
    cmd/bootdev
    cmd/bootefi
    cmd/bootflow
@@ -34,6 +35,7 @@ Shell commands
    cmd/cat
    cmd/cbsysinfo
    cmd/cls
+   cmd/cmp
    cmd/conitrace
    cmd/cyclic
    cmd/dm
@@ -48,8 +50,11 @@ Shell commands
    cmd/fatinfo
    cmd/fatload
    cmd/fdt
+   cmd/font
    cmd/for
+   cmd/fwu_mdata
    cmd/gpio
+   cmd/host
    cmd/load
    cmd/loadm
    cmd/loady
@@ -72,7 +77,9 @@ Shell commands
    cmd/tftpput
    cmd/true
    cmd/ums
+   cmd/ut
    cmd/wdt
+   cmd/wget
    cmd/xxd
 
 Booting OS

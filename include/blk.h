@@ -147,8 +147,8 @@ void blkcache_fill(int iftype, int dev,
  * blkcache_invalidate() - discard the cache for a set of blocks
  * because of a write or device (re)initialization.
  *
- * @param iftype - uclass_id_x for type of device
- * @param dev - device index of particular type
+ * @iftype - UCLASS_ID_ for type of device, or -1 for any
+ * @dev - device index of particular type, if @iftype is not -1
  */
 void blkcache_invalidate(int iftype, int dev);
 
@@ -178,6 +178,9 @@ struct block_cache_stats {
  */
 void blkcache_stats(struct block_cache_stats *stats);
 
+/** blkcache_free() - free all memory allocated to the block cache */
+void blkcache_free(void);
+
 #else
 
 static inline int blkcache_read(int iftype, int dev,
@@ -192,6 +195,8 @@ static inline void blkcache_fill(int iftype, int dev,
 				 unsigned long blksz, void const *buffer) {}
 
 static inline void blkcache_invalidate(int iftype, int dev) {}
+
+static inline void blkcache_free(void) {}
 
 #endif
 
@@ -272,6 +277,43 @@ unsigned long blk_dwrite(struct blk_desc *block_dev, lbaint_t start,
 			 lbaint_t blkcnt, const void *buffer);
 unsigned long blk_derase(struct blk_desc *block_dev, lbaint_t start,
 			 lbaint_t blkcnt);
+
+/**
+ * blk_read() - Read from a block device
+ *
+ * @dev: Device to read from
+ * @start: Start block for the read
+ * @blkcnt: Number of blocks to read
+ * @buf: Place to put the data
+ * @return number of blocks read (which may be less than @blkcnt),
+ * or -ve on error. This never returns 0 unless @blkcnt is 0
+ */
+long blk_read(struct udevice *dev, lbaint_t start, lbaint_t blkcnt,
+	      void *buffer);
+
+/**
+ * blk_write() - Write to a block device
+ *
+ * @dev: Device to write to
+ * @start: Start block for the write
+ * @blkcnt: Number of blocks to write
+ * @buf: Data to write
+ * @return number of blocks written (which may be less than @blkcnt),
+ * or -ve on error. This never returns 0 unless @blkcnt is 0
+ */
+long blk_write(struct udevice *dev, lbaint_t start, lbaint_t blkcnt,
+	       const void *buffer);
+
+/**
+ * blk_erase() - Erase part of a block device
+ *
+ * @dev: Device to erase
+ * @start: Start block for the erase
+ * @blkcnt: Number of blocks to erase
+ * @return number of blocks erased (which may be less than @blkcnt),
+ * or -ve on error. This never returns 0 unless @blkcnt is 0
+ */
+long blk_erase(struct udevice *dev, lbaint_t start, lbaint_t blkcnt);
 
 /**
  * blk_find_device() - Find a block device
@@ -412,9 +454,35 @@ int blk_next_free_devnum(enum uclass_id uclass_id);
 int blk_select_hwpart(struct udevice *dev, int hwpart);
 
 /**
+ * blk_find_from_parent() - find a block device by looking up its parent
+ *
+ * All block devices have a parent 'media' device which provides the block
+ * driver for the block device, ensuring that access to the underlying medium
+ * is available.
+ *
+ * The block device is not activated by this function. See
+ * blk_get_from_parent() for that.
+ *
+ * @parent: Media device
+ * @devp: Returns the associated block device, if any
+ * Returns: 0 if OK, -ENODEV if @parent is not a media device and has no
+ * UCLASS_BLK child
+ */
+int blk_find_from_parent(struct udevice *parent, struct udevice **devp);
+
+/**
  * blk_get_from_parent() - obtain a block device by looking up its parent
  *
- * All devices with
+ * All block devices have a parent 'media' device which provides the block
+ * driver for the block device, ensuring that access to the underlying medium
+ * is available.
+ *
+ * The block device is probed and ready for use.
+ *
+ * @parent: Media device
+ * @devp: Returns the associated block device, if any
+ * Returns: 0 if OK, -ENODEV if @parent is not a media device and has no
+ * UCLASS_BLK child
  */
 int blk_get_from_parent(struct udevice *parent, struct udevice **devp);
 
@@ -428,7 +496,7 @@ const char *blk_get_devtype(struct udevice *dev);
 
 /**
  * blk_get_by_device() - Get the block device descriptor for the given device
- * @dev:	Instance of a storage device
+ * @dev:	Instance of a storage device (the parent of the block device)
  *
  * Return: With block device descriptor on success , NULL if there is no such
  *	   block device.

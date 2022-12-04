@@ -278,7 +278,8 @@ dtb-$(CONFIG_ARCH_MVEBU) +=			\
 	cn9132-db-A.dtb				\
 	cn9132-db-B.dtb				\
 	cn9130-crb-A.dtb			\
-	cn9130-crb-B.dtb
+	cn9130-crb-B.dtb			\
+	ac5-98dx35xx-rd.dtb
 endif
 
 dtb-$(CONFIG_ARCH_SYNQUACER) += synquacer-sc2a11-developerbox.dtb
@@ -382,6 +383,8 @@ dtb-$(CONFIG_ARCH_VERSAL) += \
 	versal-mini.dtb \
 	versal-mini-emmc0.dtb \
 	versal-mini-emmc1.dtb \
+	versal-mini-ospi-single.dtb \
+	versal-mini-qspi-single.dtb \
 	xilinx-versal-virt.dtb
 dtb-$(CONFIG_ARCH_VERSAL_NET) += \
 	versal-net-mini.dtb \
@@ -978,6 +981,7 @@ dtb-$(CONFIG_ARCH_IMX8M) += \
 	imx8mp-dhcom-pdk2.dtb \
 	imx8mp-evk.dtb \
 	imx8mp-icore-mx8mp-edimm2.2.dtb \
+	imx8mp-msc-sm2s.dtb \
 	imx8mp-phyboard-pollux-rdk.dtb \
 	imx8mp-venice.dtb \
 	imx8mp-venice-gw74xx.dtb \
@@ -1164,24 +1168,43 @@ dtb-$(CONFIG_ARCH_BCM283X) += \
 	bcm2837-rpi-cm3-io3.dtb \
 	bcm2711-rpi-4-b.dtb
 
-dtb-$(CONFIG_ARCH_BCM63158) += \
-	bcm963158.dtb
-
-dtb-$(CONFIG_ARCH_BCM68360) += \
-	bcm968360bg.dtb
-
-dtb-$(CONFIG_ARCH_BCM6753) += \
-	bcm96753ref.dtb
-
-dtb-$(CONFIG_ARCH_BCM6858) += \
-	bcm968580xref.dtb
-
 dtb-$(CONFIG_TARGET_BCMNS3) += ns3-board.dtb
 
 dtb-$(CONFIG_ARCH_BCMSTB) += bcm7xxx.dtb
 
 dtb-$(CONFIG_BCM47622) += \
 	bcm947622.dtb
+dtb-$(CONFIG_BCM4908) += \
+	bcm94908.dtb
+dtb-$(CONFIG_BCM4912) += \
+	bcm94912.dtb
+dtb-$(CONFIG_BCM63138) += \
+	bcm963138.dtb
+dtb-$(CONFIG_BCM63146) += \
+	bcm963146.dtb
+dtb-$(CONFIG_BCM63148) += \
+	bcm963148.dtb
+dtb-$(CONFIG_BCM63158) += \
+	bcm963158.dtb
+dtb-$(CONFIG_BCM63178) += \
+	bcm963178.dtb
+dtb-$(CONFIG_BCM6756) += \
+	bcm96756.dtb
+dtb-$(CONFIG_BCM6813) += \
+	bcm96813.dtb
+dtb-$(CONFIG_BCM6846) += \
+	bcm96846.dtb
+dtb-$(CONFIG_BCM6855) += \
+	bcm96855.dtb \
+	bcm96753ref.dtb
+dtb-$(CONFIG_BCM6856) += \
+	bcm96856.dtb \
+	bcm968360bg.dtb
+dtb-$(CONFIG_BCM6858) += \
+	bcm96858.dtb \
+	bcm968580xref.dtb
+dtb-$(CONFIG_BCM6878) += \
+	bcm96878.dtb
 
 dtb-$(CONFIG_ASPEED_AST2500) += ast2500-evb.dtb
 dtb-$(CONFIG_ASPEED_AST2600) += ast2600-evb.dtb

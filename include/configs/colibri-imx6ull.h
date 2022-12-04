@@ -18,8 +18,8 @@
 /* ENET1 */
 
 /* MMC Config */
-#define CONFIG_SYS_FSL_ESDHC_ADDR	0
-#define CONFIG_SYS_FSL_USDHC_NUM	1
+#define CFG_SYS_FSL_ESDHC_ADDR	0
+#define CFG_SYS_FSL_USDHC_NUM	1
 
 #define CONFIG_IPADDR			192.168.10.2
 #define CONFIG_NETMASK			255.255.255.0
@@ -122,7 +122,6 @@
 
 #ifdef CONFIG_TARGET_COLIBRI_IMX6ULL_NAND
 /* NAND stuff */
-#define CONFIG_SYS_MAX_NAND_DEVICE	1
 /* used to initialize CONFIG_SYS_NAND_BASE_LIST which is unused */
 #define CONFIG_SYS_NAND_BASE		-1
 #endif
@@ -137,7 +136,7 @@
 /* USB Device Firmware Update support */
 #define DFU_DEFAULT_POLL_TIMEOUT	300
 
-#if defined(CONFIG_DM_VIDEO)
+#if defined(CONFIG_VIDEO)
 #define MXS_LCDIF_BASE MX6UL_LCDIF1_BASE_ADDR
 #endif
 
